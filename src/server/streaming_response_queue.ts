@@ -8,7 +8,7 @@ export class StreamingResponseQueue<T> {
 
   /**
    * Check if the queue is closed
-   * 
+   *
    * @returns True if the queue is closed
    */
   isClosed(): boolean {
@@ -17,7 +17,7 @@ export class StreamingResponseQueue<T> {
 
   /**
    * Push an item to the queue
-   * 
+   *
    * @param item - Item to push
    * @returns True if the item was pushed successfully
    */
@@ -38,7 +38,7 @@ export class StreamingResponseQueue<T> {
 
   /**
    * Get the next item from the queue
-   * 
+   *
    * @returns Promise resolving to the next item or null if the queue is closed
    */
   async next(): Promise<T | null> {
@@ -68,7 +68,7 @@ export class StreamingResponseQueue<T> {
 
   /**
    * Create an async iterator for the queue
-   * 
+   *
    * @returns AsyncGenerator yielding items from the queue
    */
   async *[Symbol.asyncIterator](): AsyncGenerator<T, void, unknown> {

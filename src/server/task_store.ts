@@ -1,4 +1,4 @@
-import { Task } from '../types';
+import { Task } from "../types";
 
 /**
  * Interface for task storage
@@ -6,7 +6,7 @@ import { Task } from '../types';
 export interface TaskStore {
   /**
    * Get a task by ID
-   * 
+   *
    * @param id - Task ID
    * @returns Promise resolving to the task or undefined if not found
    */
@@ -14,7 +14,7 @@ export interface TaskStore {
 
   /**
    * Save a task
-   * 
+   *
    * @param task - Task to save
    * @returns Promise that resolves when the task is saved
    */
@@ -29,7 +29,7 @@ export class InMemoryTaskStore implements TaskStore {
 
   /**
    * Get a task by ID
-   * 
+   *
    * @param id - Task ID
    * @returns Promise resolving to the task or undefined if not found
    */
@@ -39,7 +39,7 @@ export class InMemoryTaskStore implements TaskStore {
 
   /**
    * Save a task
-   * 
+   *
    * @param task - Task to save
    * @returns Promise that resolves when the task is saved
    */

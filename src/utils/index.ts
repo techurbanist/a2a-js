@@ -1,8 +1,8 @@
-import { Task, TaskArtifact } from '../types';
+import { Task, TaskArtifact } from "../types";
 
 /**
  * Append an artifact to a task
- * 
+ *
  * @param task - The task to update
  * @param artifact - The artifact to append
  * @returns Updated task
@@ -12,8 +12,8 @@ export function appendArtifactToTask(task: Task, artifact: TaskArtifact): Task {
   const updatedTask = {
     ...task,
     artifacts: [...(task.artifacts || []), artifact],
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   };
-  
+
   return updatedTask;
 }

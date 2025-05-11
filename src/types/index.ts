@@ -10,7 +10,7 @@ export interface JSONRPCMessage {
    * Specifies the version of the JSON-RPC protocol. MUST be exactly "2.0".
    */
   jsonrpc: "2.0";
-  
+
   /**
    * An identifier established by the Client that MUST contain a String or Number
    * Numbers SHOULD NOT contain fractional parts
@@ -26,7 +26,7 @@ export interface JSONRPCRequest extends JSONRPCMessage {
    * A String containing the name of the method to be invoked.
    */
   method: string;
-  
+
   /**
    * A Structured value that holds the parameter values to be used during the invocation of the method.
    */
@@ -52,7 +52,7 @@ export enum JSONRPCErrorCode {
   MethodNotFound = -32601,
   InvalidParams = -32602,
   InternalError = -32603,
-  ContentTypeNotSupported = -32005
+  ContentTypeNotSupported = -32005,
 }
 
 /**
@@ -63,12 +63,12 @@ export interface JSONRPCError {
    * A Number that indicates the error type that occurred.
    */
   code: number;
-  
+
   /**
    * A String providing a short description of the error.
    */
   message: string;
-  
+
   /**
    * A Primitive or Structured value that contains additional information about the error.
    * This may be omitted.
@@ -91,7 +91,7 @@ export interface JSONRPCErrorResponse extends JSONRPCMessage {
  */
 export enum Role {
   Agent = "agent",
-  User = "user"
+  User = "user",
 }
 
 /**
@@ -112,7 +112,7 @@ export interface TextPart extends PartBase {
    * Part type - text for TextParts
    */
   type: "text";
-  
+
   /**
    * Text content
    */
@@ -127,7 +127,7 @@ export interface DataPart extends PartBase {
    * Part type - data for DataParts
    */
   type: "data";
-  
+
   /**
    * Structured data content
    */
@@ -142,7 +142,7 @@ export interface FileBase {
    * Optional name for the file
    */
   name?: string;
-  
+
   /**
    * Optional mimeType for the file
    */
@@ -177,7 +177,7 @@ export interface FilePart extends PartBase {
    * Part type - file for FileParts
    */
   type: "file";
-  
+
   /**
    * The file content - either URI or bytes
    */
@@ -197,22 +197,22 @@ export interface Message {
    * Unique identifier for the message
    */
   messageId: string;
-  
+
   /**
    * Message sender's role
    */
   role: Role;
-  
+
   /**
    * The parts that make up the message content
    */
   parts: Part[];
-  
+
   /**
    * Task ID the message is associated with (optional)
    */
   taskId?: string;
-  
+
   /**
    * Whether this message is the final one in a stream (optional)
    */
@@ -226,7 +226,7 @@ export enum TaskState {
   Active = "active",
   Completed = "completed",
   Failed = "failed",
-  Canceled = "canceled"
+  Canceled = "canceled",
 }
 
 /**
@@ -237,7 +237,7 @@ export interface TaskArtifact {
    * Unique identifier for the artifact
    */
   artifactId: string;
-  
+
   /**
    * Mime type of the artifact
    */
@@ -247,7 +247,7 @@ export interface TaskArtifact {
    * The URI where the artifact can be accessed
    */
   uri?: string;
-  
+
   /**
    * Base64 encoded content of the artifact
    */
@@ -262,37 +262,37 @@ export interface Task {
    * Unique identifier for the task
    */
   taskId: string;
-  
+
   /**
    * Current state of the task
    */
   state: TaskState;
-  
+
   /**
    * Task creation timestamp
    */
   createdAt: string;
-  
+
   /**
    * Timestamp of the last update
    */
   updatedAt: string;
-  
+
   /**
    * The input message that created the task
    */
   input: Message;
-  
+
   /**
    * Output messages produced during task execution
    */
   messages: Message[];
-  
+
   /**
    * Optional artifacts produced by the task
    */
   artifacts?: TaskArtifact[];
-  
+
   /**
    * Optional status message for the task
    */
@@ -307,7 +307,7 @@ export interface AgentAuthentication {
    * Authentication schemes supported (e.g. Basic, Bearer)
    */
   schemes: string[];
-  
+
   /**
    * Credentials a client should use for private cards
    */
@@ -322,12 +322,12 @@ export interface AgentCapabilities {
    * True if the agent can notify updates to client
    */
   pushNotifications?: boolean;
-  
+
   /**
    * True if the agent exposes status change history for tasks
    */
   stateTransitionHistory?: boolean;
-  
+
   /**
    * True if the agent supports server-sent events
    */
@@ -342,7 +342,7 @@ export interface AgentProvider {
    * Agent provider's organization name
    */
   organization: string;
-  
+
   /**
    * Agent provider's URL
    */
@@ -357,32 +357,32 @@ export interface AgentSkill {
    * Unique identifier for the agent's skill
    */
   id: string;
-  
+
   /**
    * Human readable name of the skill
    */
   name: string;
-  
+
   /**
    * Description of the skill
    */
   description: string;
-  
+
   /**
    * Set of tagwords describing classes of capabilities for this specific skill
    */
   tags: string[];
-  
+
   /**
    * Example scenarios that the skill can perform
    */
   examples?: string[];
-  
+
   /**
    * The set of interaction modes that the skill supports
    */
   inputModes?: string[];
-  
+
   /**
    * Supported mime types for output
    */
@@ -397,47 +397,47 @@ export interface AgentCard {
    * Name of the agent
    */
   name: string;
-  
+
   /**
    * Description of the agent
    */
   description: string;
-  
+
   /**
    * URL where the agent API is accessible
    */
   url: string;
-  
+
   /**
    * Version of the agent
    */
   version: string;
-  
+
   /**
    * Default input modes supported by the agent
    */
   defaultInputModes: string[];
-  
+
   /**
    * Default output modes supported by the agent
    */
   defaultOutputModes: string[];
-  
+
   /**
    * Skills provided by the agent
    */
   skills: AgentSkill[];
-  
+
   /**
    * Authentication details
    */
   authentication: AgentAuthentication;
-  
+
   /**
    * Optional agent capabilities
    */
   capabilities?: AgentCapabilities;
-  
+
   /**
    * Agent provider information
    */
@@ -482,7 +482,7 @@ export interface SendMessageRequest extends JSONRPCRequest {
    * Fixed method for sending messages
    */
   method: "message/send";
-  
+
   /**
    * Message parameters
    */
@@ -502,7 +502,9 @@ export interface SendMessageSuccessResponse extends JSONRPCResult {
 /**
  * Response for send message
  */
-export type SendMessageResponse = SendMessageSuccessResponse | JSONRPCErrorResponse;
+export type SendMessageResponse =
+  | SendMessageSuccessResponse
+  | JSONRPCErrorResponse;
 
 /**
  * Request to send a streaming message
@@ -512,7 +514,7 @@ export interface SendMessageStreamingRequest extends JSONRPCRequest {
    * Fixed method for streaming messages
    */
   method: "message/sendStream";
-  
+
   /**
    * Message parameters
    */
@@ -532,7 +534,9 @@ export interface SendMessageStreamingSuccessResponse extends JSONRPCResult {
 /**
  * Response for streaming messages
  */
-export type SendMessageStreamingResponse = SendMessageStreamingSuccessResponse | JSONRPCErrorResponse;
+export type SendMessageStreamingResponse =
+  | SendMessageStreamingSuccessResponse
+  | JSONRPCErrorResponse;
 
 /**
  * Request to get task details
@@ -542,7 +546,7 @@ export interface GetTaskRequest extends JSONRPCRequest {
    * Fixed method for getting task
    */
   method: "tasks/get";
-  
+
   /**
    * Task query parameters
    */
@@ -572,7 +576,7 @@ export interface CancelTaskRequest extends JSONRPCRequest {
    * Fixed method for canceling tasks
    */
   method: "tasks/cancel";
-  
+
   /**
    * Task ID parameters
    */
@@ -592,7 +596,9 @@ export interface CancelTaskSuccessResponse extends JSONRPCResult {
 /**
  * Response for cancel task
  */
-export type CancelTaskResponse = CancelTaskSuccessResponse | JSONRPCErrorResponse;
+export type CancelTaskResponse =
+  | CancelTaskSuccessResponse
+  | JSONRPCErrorResponse;
 
 /**
  * Push notification configuration for a task
@@ -602,7 +608,7 @@ export interface TaskPushNotificationConfig extends TaskIdParams {
    * Callback URL for push notifications
    */
   callbackUrl: string;
-  
+
   /**
    * Optional authentication token for the callback
    */
@@ -617,7 +623,7 @@ export interface SetTaskPushNotificationConfigRequest extends JSONRPCRequest {
    * Fixed method for setting push notification config
    */
   method: "tasks/pushNotificationConfig/set";
-  
+
   /**
    * Push notification config parameters
    */
@@ -627,7 +633,8 @@ export interface SetTaskPushNotificationConfigRequest extends JSONRPCRequest {
 /**
  * Success response for setting task push notification config
  */
-export interface SetTaskPushNotificationConfigSuccessResponse extends JSONRPCResult {
+export interface SetTaskPushNotificationConfigSuccessResponse
+  extends JSONRPCResult {
   /**
    * True if configuration was successful
    */
@@ -637,7 +644,9 @@ export interface SetTaskPushNotificationConfigSuccessResponse extends JSONRPCRes
 /**
  * Response for set task push notification config
  */
-export type SetTaskPushNotificationConfigResponse = SetTaskPushNotificationConfigSuccessResponse | JSONRPCErrorResponse;
+export type SetTaskPushNotificationConfigResponse =
+  | SetTaskPushNotificationConfigSuccessResponse
+  | JSONRPCErrorResponse;
 
 /**
  * Request to get push notification config
@@ -647,7 +656,7 @@ export interface GetTaskPushNotificationConfigRequest extends JSONRPCRequest {
    * Fixed method for getting push notification config
    */
   method: "tasks/pushNotificationConfig/get";
-  
+
   /**
    * Task ID parameters
    */
@@ -657,7 +666,8 @@ export interface GetTaskPushNotificationConfigRequest extends JSONRPCRequest {
 /**
  * Success response for getting task push notification config
  */
-export interface GetTaskPushNotificationConfigSuccessResponse extends JSONRPCResult {
+export interface GetTaskPushNotificationConfigSuccessResponse
+  extends JSONRPCResult {
   /**
    * The push notification config
    */
@@ -667,7 +677,9 @@ export interface GetTaskPushNotificationConfigSuccessResponse extends JSONRPCRes
 /**
  * Response for get task push notification config
  */
-export type GetTaskPushNotificationConfigResponse = GetTaskPushNotificationConfigSuccessResponse | JSONRPCErrorResponse;
+export type GetTaskPushNotificationConfigResponse =
+  | GetTaskPushNotificationConfigSuccessResponse
+  | JSONRPCErrorResponse;
 
 /**
  * Task resubscription request
@@ -677,7 +689,7 @@ export interface TaskResubscriptionRequest extends JSONRPCRequest {
    * Fixed method for resubscribing to task
    */
   method: "tasks/resubscribe";
-  
+
   /**
    * Task ID parameters
    */
@@ -692,17 +704,17 @@ export interface TaskStatusUpdateEvent {
    * Task status was updated
    */
   type: "taskStatusUpdate";
-  
+
   /**
    * Task ID
    */
   taskId: string;
-  
+
   /**
    * New task state
    */
   state: TaskState;
-  
+
   /**
    * Optional status message
    */
@@ -717,12 +729,12 @@ export interface TaskArtifactUpdateEvent {
    * Task artifact was updated
    */
   type: "taskArtifactUpdate";
-  
+
   /**
    * Task ID
    */
   taskId: string;
-  
+
   /**
    * New artifact
    */
@@ -736,18 +748,21 @@ export interface A2AError {
   /**
    * Task not found error
    */
-  type: "TaskNotFoundError" | "UnsupportedOperationError" | "ContentTypeNotSupportedError";
-  
+  type:
+    | "TaskNotFoundError"
+    | "UnsupportedOperationError"
+    | "ContentTypeNotSupportedError";
+
   /**
    * Error code
    */
   code: number;
-  
+
   /**
    * Error message
    */
   message: string;
-  
+
   /**
    * Additional error data
    */
@@ -760,7 +775,7 @@ export interface A2AError {
 export const TaskNotFoundError: A2AError = {
   type: "TaskNotFoundError",
   code: -32000,
-  message: "Task not found"
+  message: "Task not found",
 };
 
 /**
@@ -769,7 +784,7 @@ export const TaskNotFoundError: A2AError = {
 export const UnsupportedOperationError: A2AError = {
   type: "UnsupportedOperationError",
   code: -32001,
-  message: "Operation not supported"
+  message: "Operation not supported",
 };
 
 /**
@@ -778,5 +793,5 @@ export const UnsupportedOperationError: A2AError = {
 export const ContentTypeNotSupportedError: A2AError = {
   type: "ContentTypeNotSupportedError",
   code: -32005,
-  message: "Incompatible content types"
+  message: "Incompatible content types",
 };

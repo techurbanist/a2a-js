@@ -1,6 +1,6 @@
-import { AgentCard } from '../types';
-import { A2ARequestHandler } from './request_handler';
-import { A2AApplication } from './app';
+import { AgentCard } from "../types";
+import { A2ARequestHandler } from "./request_handler";
+import { A2AApplication } from "./app";
 
 /**
  * Options for starting the server
@@ -10,7 +10,7 @@ export interface ServerOptions {
    * Host to listen on
    */
   host?: string;
-  
+
   /**
    * Port to listen on
    */
@@ -26,7 +26,7 @@ export class A2AServer {
 
   /**
    * Create a new A2AServer
-   * 
+   *
    * @param agentCard - Agent card
    * @param requestHandler - Request handler
    */
@@ -37,7 +37,7 @@ export class A2AServer {
 
   /**
    * Get the Express application
-   * 
+   *
    * @returns Express application
    */
   app(): any {
@@ -46,23 +46,23 @@ export class A2AServer {
 
   /**
    * Start the server
-   * 
+   *
    * @param options - Server options
    */
   start(options: ServerOptions = {}): void {
-    const host = options.host || '0.0.0.0';
+    const host = options.host || "0.0.0.0";
     const port = options.port || 3000;
-    
+
     const app = this.app();
     const server = app.listen(port, host, () => {
       console.log(`A2A Server running at http://${host}:${port}`);
     });
-    
+
     // Handle graceful shutdown
-    process.on('SIGINT', () => {
-      console.log('Shutting down A2A server...');
+    process.on("SIGINT", () => {
+      console.log("Shutting down A2A server...");
       server.close(() => {
-        console.log('A2A server closed');
+        console.log("A2A server closed");
         process.exit(0);
       });
     });
