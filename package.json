@@ -1,6 +1,6 @@
 {
   "name": "a2a-js",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "JavaScript SDK for the Agent2Agent (A2A) Protocol - enabling communication between AI agents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
