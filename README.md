@@ -40,7 +40,11 @@ npm install a2a-js
 
 ### Client Example
 
-```typescript
+```bash
+npm install a2a-js uuid axios
+```
+
+```javascript
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { A2AClient, Role } from 'a2a-js';
@@ -51,11 +55,11 @@ async function main() {
   // Create the A2A client
   const client = await A2AClient.getClientFromAgentCardUrl(
     axiosClient,
-    'http://localhost:9999'
+    'http://localhost:3000'
   );
 
   // Send a basic message
-  const response = await client.sendMessage({
+  const basicResponse = await client.sendMessage({
     message: {
       role: Role.User,
       parts: [{ type: 'text', text: 'Hello agent' }],
@@ -63,10 +67,29 @@ async function main() {
     }
   });
   
-  console.log('Response:', JSON.stringify(response, null, 2));
+  // Process the response
+  if ('result' in basicResponse) {
+    const successResponse = basicResponse;
+    const resultMessage = successResponse.result;
+    
+    console.log('Response:', JSON.stringify(resultMessage, null, 2));
+    
+    // Extract text parts
+    const textContent = resultMessage.parts
+      .filter(part => part.type === 'text')
+      .map(part => part.text)
+      .join('');
+    
+    console.log('Message content:', textContent);
+  } else {
+    // Handle error response
+    console.error('Error:', basicResponse.error);
+  }
   
   // Send a streaming message
   try {
+    const streamingChunks = [];
+    
     await client.sendMessageStreaming(
       {
         message: {
@@ -77,21 +100,34 @@ async function main() {
       },
       uuidv4(),
       (chunk) => {
-        console.log('Stream Chunk:', JSON.stringify(chunk, null, 2));
-        
-        // Extract and print text content from the response
-        if (chunk && 'result' in chunk && chunk.result && 'parts' in chunk.result) {
-          const textParts = chunk.result.parts
-            .filter(part => part.type === 'text')
-            .map(part => (part as any).text)
-            .join('');
+        if ('result' in chunk) {
+          // Handle success chunks
+          const message = chunk.result;
+          streamingChunks.push(message);
           
-          if (textParts) {
-            console.log('Message content:', textParts);
+          // Extract text from the message
+          if (message.parts && message.parts[0].type === 'text') {
+            const text = message.parts[0].text;
+            process.stdout.write(text); // Print without newline
+            
+            // Print newline on final chunk
+            if (message.final) {
+              process.stdout.write('\n');
+            }
           }
+        } else {
+          // Handle error chunks
+          console.error('Stream error:', chunk.error);
         }
       }
     );
+    
+    // Combine all chunks to get the complete message
+    const fullText = streamingChunks
+      .map(message => message.parts[0].type === 'text' ? message.parts[0].text : '')
+      .join('');
+    
+    console.log('\nFull message:', fullText);
   } catch (error) {
     console.error('Streaming error:', error);
   }
@@ -102,91 +138,87 @@ main().catch(error => console.error('Error:', error));
 
 ### Server Example
 
-```typescript
+```javascript
 import { v4 as uuidv4 } from 'uuid';
 import { 
-  AgentCard, 
-  AgentExecutor,
-  AgentSkill,
   A2AServer, 
-  CancelTaskRequest,
-  CancelTaskResponse,
   DefaultA2ARequestHandler,
-  Message,
-  Part,
   Role,
-  SendMessageRequest,
-  SendMessageResponse,
-  SendMessageStreamingRequest,
-  SendMessageStreamingResponse,
-  Task,
-  TaskResubscriptionRequest,
   UnsupportedOperationError
 } from 'a2a-js';
 
 /**
  * Simple agent implementation
  */
-class MyAgent {
-  async invoke(): Promise<string> {
-    return 'Hello from agent';
+class HelloWorldAgent {
+  /**
+   * Standard synchronous response
+   */
+  async invoke() {
+    return 'Hello World';
   }
 
-  async *stream(): AsyncGenerator<{ content: string, done: boolean }, void, unknown> {
+  /**
+   * Stream the response in multiple chunks
+   */
+  async *stream() {
     yield { content: 'Hello ', done: false };
-    yield { content: 'from ', done: false };
-    yield { content: 'agent!', done: true };
+    yield { content: 'World', done: false };
+    yield { content: '!', done: true };
   }
 }
 
 /**
  * Agent executor implementation
  */
-class MyAgentExecutor implements AgentExecutor {
-  private agent = new MyAgent();
+class MyAgentExecutor {
+  constructor() {
+    this.agent = new HelloWorldAgent();
+  }
 
-  // Handle standard message request
-  async onMessageSend(
-    request: SendMessageRequest,
-    task?: Task
-  ): Promise<SendMessageResponse> {
+  /**
+   * Handle standard message request
+   */
+  async onMessageSend(request, task) {
     const result = await this.agent.invoke();
+    
+    const message = {
+      role: Role.Agent,
+      parts: [{ type: 'text', text: result }],
+      messageId: uuidv4(),
+    };
 
     return {
       jsonrpc: '2.0',
       id: request.id,
-      result: {
-        role: Role.Agent,
-        parts: [{ type: 'text', text: result } as Part],
-        messageId: uuidv4(),
-      }
+      result: message
     };
   }
 
-  // Handle streaming message request
-  async *onMessageStream(
-    request: SendMessageStreamingRequest,
-    task?: Task
-  ): AsyncGenerator<SendMessageStreamingResponse, void, unknown> {
+  /**
+   * Handle streaming message request
+   */
+  async *onMessageStream(request, task) {
     for await (const chunk of this.agent.stream()) {
+      const message = {
+        role: Role.Agent,
+        parts: [{ type: 'text', text: chunk.content }],
+        messageId: uuidv4(),
+        final: chunk.done,
+      };
+
       yield {
         jsonrpc: '2.0',
         id: request.id,
-        result: {
-          role: Role.Agent,
-          parts: [{ type: 'text', text: chunk.content } as Part],
-          messageId: uuidv4(),
-          final: chunk.done,
-        }
+        result: message
       };
     }
   }
 
-  // Handle task cancellation
-  async onCancel(
-    request: CancelTaskRequest,
-    task: Task
-  ): Promise<CancelTaskResponse> {
+  /**
+   * Handle task cancellation
+   */
+  async onCancel(request, task) {
     return {
       jsonrpc: '2.0',
       id: request.id,
@@ -194,11 +226,10 @@ class MyAgentExecutor implements AgentExecutor {
     };
   }
 
-  // Handle task resubscription
-  async *onResubscribe(
-    request: TaskResubscriptionRequest,
-    task: Task
-  ): AsyncGenerator<SendMessageStreamingResponse, void, unknown> {
+  /**
+   * Handle task resubscription
+   */
+  async *onResubscribe(request, task) {
     yield {
       jsonrpc: '2.0',
       id: request.id,
@@ -207,34 +238,43 @@ class MyAgentExecutor implements AgentExecutor {
   }
 }
 
-// Define the agent skill
-const skill: AgentSkill = {
-  id: 'example_skill',
-  name: 'Example Skill',
-  description: 'An example skill',
-  tags: ['example'],
-  examples: ['hello', 'help'],
-};
-
-// Create the agent card
-const agentCard: AgentCard = {
-  name: 'My Agent',
-  description: 'An example A2A agent',
-  url: 'http://localhost:3000/',
+// Define the agent card
+const agentCard = {
+  name: 'Hello World Agent',
+  description: 'A simple A2A agent example',
+  url: 'http://localhost:3000',
   version: '1.0.0',
   defaultInputModes: ['text'],
   defaultOutputModes: ['text'],
   capabilities: {},
-  skills: [skill],
+  skills: [{
+    id: 'hello_world',
+    name: 'Hello World',
+    description: 'Responds with Hello World',
+    tags: ['example'],
+    examples: ['hello', 'hi'],
+  }],
   authentication: {
     schemes: ['public']
   }
 };
 
-// Create and start the server
+// Set up the server
+const PORT = 3000;
+
+// Create the request handler with our agent executor
 const requestHandler = new DefaultA2ARequestHandler(new MyAgentExecutor());
+
+// Create the server
 const server = new A2AServer(agentCard, requestHandler);
-server.start({ port: 3000 });
+
+// Start the server
+try {
+  server.start({ port: PORT, host: '0.0.0.0' });
+  console.log(`A2A server running at http://localhost:${PORT}`);
+} catch (error) {
+  console.error('Failed to start server:', error);
+}
 ```
 
 ## Examples

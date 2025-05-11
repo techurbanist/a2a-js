@@ -1,10 +1,13 @@
 {
   "name": "a2a-js",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "JavaScript SDK for the Agent2Agent (A2A) Protocol - enabling communication between AI agents",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "type": "module",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
