@@ -34,7 +34,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/techurbanist/a2a-js.git"
+    "url": "git+https://github.com/techurbanist/a2a-js.git"
   },
   "bugs": {
     "url": "https://github.com/techurbanist/a2a-js/issues"
