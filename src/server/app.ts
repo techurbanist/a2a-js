@@ -1,9 +1,9 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
-import { json as jsonParser } from "body-parser";
+import bodyParser from "body-parser";
 
-import { AgentCard, JSONRPCRequest } from "../types";
-import { A2ARequestHandler } from "./request_handler";
+import { AgentCard, JSONRPCRequest } from "../types/index.js";
+import { A2ARequestHandler } from "./request_handler.js";
 
 /**
  * Express application for handling A2A requests
@@ -33,7 +33,7 @@ export class A2AApplication {
 
     // Middleware
     app.use(cors());
-    app.use(jsonParser({ limit: "50mb" }));
+    app.use(bodyParser.json({ limit: "50mb" }));
 
     // Agent card route
     app.get("/.well-known/agent.json", (_req: Request, res: Response) => {
@@ -52,10 +52,10 @@ export class A2AApplication {
           case "message/send":
             self.requestHandler
               .onMessageSend(jsonRpcRequest as any)
-              .then((messageResponse) => {
+              .then((messageResponse: any) => {
                 res.json(messageResponse);
               })
-              .catch((error) => {
+              .catch((error: any) => {
                 handleError(error);
               });
             break;
@@ -98,10 +98,10 @@ export class A2AApplication {
           case "tasks/get":
             self.requestHandler
               .onGetTask(jsonRpcRequest as any)
-              .then((taskResponse) => {
+              .then((taskResponse: any) => {
                 res.json(taskResponse);
               })
-              .catch((error) => {
+              .catch((error: any) => {
                 handleError(error);
               });
             break;
@@ -109,10 +109,10 @@ export class A2AApplication {
           case "tasks/cancel":
             self.requestHandler
               .onCancelTask(jsonRpcRequest as any)
-              .then((cancelResponse) => {
+              .then((cancelResponse: any) => {
                 res.json(cancelResponse);
               })
-              .catch((error) => {
+              .catch((error: any) => {
                 handleError(error);
               });
             break;
@@ -120,10 +120,10 @@ export class A2AApplication {
           case "tasks/pushNotificationConfig/set":
             self.requestHandler
               .onSetTaskPushNotification(jsonRpcRequest as any)
-              .then((setPushResponse) => {
+              .then((setPushResponse: any) => {
                 res.json(setPushResponse);
               })
-              .catch((error) => {
+              .catch((error: any) => {
                 handleError(error);
               });
             break;
@@ -131,10 +131,10 @@ export class A2AApplication {
           case "tasks/pushNotificationConfig/get":
             self.requestHandler
               .onGetTaskPushNotification(jsonRpcRequest as any)
-              .then((getPushResponse) => {
+              .then((getPushResponse: any) => {
                 res.json(getPushResponse);
               })
-              .catch((error) => {
+              .catch((error: any) => {
                 handleError(error);
               });
             break;

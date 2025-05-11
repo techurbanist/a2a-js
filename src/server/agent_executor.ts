@@ -7,7 +7,7 @@ import {
   SendMessageStreamingResponse,
   Task,
   TaskResubscriptionRequest,
-} from "../types";
+} from "../types/index.js";
 
 /**
  * Interface for agent execution

@@ -1,6 +1,6 @@
-import { AgentCard } from "../types";
-import { A2ARequestHandler } from "./request_handler";
-import { A2AApplication } from "./app";
+import { AgentCard } from "../types/index.js";
+import { A2ARequestHandler } from "./request_handler.js";
+import { A2AApplication } from "./app.js";
 
 /**
  * Options for starting the server

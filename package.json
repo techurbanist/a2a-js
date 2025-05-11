@@ -7,14 +7,14 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepare": "npm run build",
     "prepublishOnly": "npm test && npm run lint",
     "dev": "tsc --watch",
-    "example:server": "ts-node examples/helloworld/server.ts",
-    "example:client": "ts-node examples/helloworld/client.ts",
+    "example:server": "tsx examples/helloworld/server.ts",
+    "example:client": "tsx examples/helloworld/client.ts",
     "clean": "rimraf dist",
     "docs": "typedoc --out docs src"
   },
@@ -58,6 +58,7 @@
     "rimraf": "^5.0.10",
     "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
     "typedoc": "^0.25.13",
     "typescript": "^5.4.3",
     "typescript-eslint": "^8.32.0"

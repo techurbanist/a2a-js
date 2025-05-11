@@ -25,10 +25,10 @@ import {
   TaskQueryParams,
   TaskResubscriptionRequest,
   UnsupportedOperationError,
-} from "../types";
-import { AgentExecutor } from "./agent_executor";
-import { InMemoryTaskStore, TaskStore } from "./task_store";
-import { StreamingResponseQueue } from "./streaming_response_queue";
+} from "../types/index.js";
+import { AgentExecutor } from "./agent_executor.js";
+import { InMemoryTaskStore, TaskStore } from "./task_store.js";
+import { StreamingResponseQueue } from "./streaming_response_queue.js";
 
 /**
  * Interface for handling A2A requests

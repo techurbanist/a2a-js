@@ -1,4 +1,4 @@
-import { Task, TaskArtifact } from "../types";
+import { Task, TaskArtifact } from "../types/index.js";
 
 /**
  * Append an artifact to a task

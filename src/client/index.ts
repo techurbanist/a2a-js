@@ -13,13 +13,13 @@ import {
   TaskIdParams,
   TaskPushNotificationConfig,
   TaskQueryParams,
-} from "../types";
+} from "../types/index.js";
 
 import {
   A2AClientHTTPError,
   A2AClientJSONError,
   A2AClientSSEError,
-} from "./errors";
+} from "./errors.js";
 
 /**
  * Agent Card resolver

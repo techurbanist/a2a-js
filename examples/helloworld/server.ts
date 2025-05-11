@@ -22,7 +22,7 @@ import {
   Task,
   TaskResubscriptionRequest,
   UnsupportedOperationError
-} from '../../src';
+} from '../../src/index.js';
 
 /**
  * Hello World Agent implementation
@@ -152,7 +152,8 @@ class HelloWorldAgentExecutor implements AgentExecutor {
   }
 }
 
-if (require.main === module) {
+// Check if this is being run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
   // Define the agent skill
   const skill: AgentSkill = {
     id: 'hello_world',

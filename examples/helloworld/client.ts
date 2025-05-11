@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
-import { A2AClient, Role } from '../../src';
+import { A2AClient, Role } from '../../src/index.js';
 
 /**
  * Simple Hello World client example
@@ -43,14 +43,14 @@ async function main() {
         }
       },
       uuidv4(),
-      (chunk) => {
+      (chunk: any) => {
         console.log('Stream Chunk:', JSON.stringify(chunk, null, 2));
         
         // If this is a message with text, let's print it more user-friendly
         if (chunk && 'result' in chunk && chunk.result && 'parts' in chunk.result) {
           const textParts = chunk.result.parts
-            .filter(part => part.type === 'text')
-            .map(part => (part as any).text)
+            .filter((part: any) => part.type === 'text')
+            .map((part: any) => (part as any).text)
             .join('');
           
           if (textParts) {
@@ -66,7 +66,8 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+// Check if this is being run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('Error:', error);
     process.exit(1);
