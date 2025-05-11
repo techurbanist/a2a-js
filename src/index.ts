@@ -3,6 +3,7 @@ export * from "./types/index.js";
 
 // Export client
 export * from "./client/index.js";
+export * from "./client/errors.js";
 
 // Export server
 export * from "./server/agent_executor.js";

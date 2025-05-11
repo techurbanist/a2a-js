@@ -2,6 +2,11 @@ import axios, { AxiosInstance } from "axios";
 import { v4 as uuidv4 } from "uuid";
 
 import {
+  A2AClientHTTPError,
+  A2AClientJSONError
+} from "./errors.js";
+
+import {
   AgentCard,
   CancelTaskResponse,
   GetTaskPushNotificationConfigResponse,
@@ -15,11 +20,7 @@ import {
   TaskQueryParams,
 } from "../types/index.js";
 
-import {
-  A2AClientHTTPError,
-  A2AClientJSONError,
-  A2AClientSSEError,
-} from "./errors.js";
+
 
 /**
  * Agent Card resolver

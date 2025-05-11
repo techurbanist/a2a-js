@@ -10,4 +10,7 @@ export default {
   coverageReporters: ['text', 'lcov'],
   coverageDirectory: 'coverage',
   coveragePathIgnorePatterns: ['/node_modules/', '/tests/'],
+  moduleNameMapper: {
+    '^(\\./|../)(.*)\\.js$': '$1$2',
+  },
 };
