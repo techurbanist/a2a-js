@@ -2,7 +2,8 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 
-import { AgentCard, JSONRPCRequest } from "../types/index.js";
+import { AgentCard } from "../types/agent_card.js";
+import { JSONRPCRequest } from "../types/index.js";
 import { A2ARequestHandler } from "./request_handler.js";
 
 /**

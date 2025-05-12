@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import * as http from 'http';
+
 import {
   AgentCard,
-  JSONRPCErrorResponse,
   Role,
   TextPart,
   Message,
@@ -17,7 +17,8 @@ import {
   CancelTaskRequest, 
   CancelTaskResponse, 
   TaskResubscriptionRequest,
-  UnsupportedOperationError
+   UnsupportedOperationError,
+  JSONRPCErrorResponse
 } from '../src/types';
 
 import { A2AClient,  } from '../src/client';
@@ -132,7 +133,7 @@ describe('A2A Client-Server Integration Test', () => {
       return {
         jsonrpc: '2.0',
         id: request.id,
-        error: UnsupportedOperationError
+        error: new UnsupportedOperationError()
       };
     }
 
@@ -146,7 +147,7 @@ describe('A2A Client-Server Integration Test', () => {
       yield {
         jsonrpc: '2.0',
         id: request.id,
-        error: UnsupportedOperationError
+        error: new UnsupportedOperationError()
       };
     }
   }

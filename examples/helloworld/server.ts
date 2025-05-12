@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 
+// Import from main index.js file
 import { 
   AgentAuthentication,
   AgentCapabilities,
@@ -12,7 +13,6 @@ import {
   DefaultA2ARequestHandler,
   Message,
   Part,
-  Role,
   SendMessageRequest,
   SendMessageResponse,
   SendMessageStreamingRequest,
@@ -23,6 +23,9 @@ import {
   TaskResubscriptionRequest,
   UnsupportedOperationError
 } from '../../src/index.js';
+
+// Import Role directly from protocol_objects.ts as it's exported as a type in index.ts
+import { Role } from '../../src/types/protocol_objects.js';
 
 /**
  * Hello World Agent implementation

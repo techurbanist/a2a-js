@@ -6,12 +6,13 @@ import {
   A2AClientJSONError
 } from "./errors.js";
 
+import { AgentCard } from "../types/agent_card.js";
 import {
-  AgentCard,
   CancelTaskResponse,
   GetTaskPushNotificationConfigResponse,
   GetTaskResponse,
   MessageSendParams,
+  PushNotificationConfig,
   SendMessageResponse,
   SendMessageStreamingResponse,
   SetTaskPushNotificationConfigResponse,
@@ -323,19 +324,29 @@ export class A2AClient {
   /**
    * Set task push notification configuration
    *
-   * @param payload - Task push notification configuration
+   * @param taskId - Task ID
+   * @param pushConfig - Push notification configuration
+   * @param metadata - Optional metadata
    * @param requestId - Request ID (defaults to a UUID)
    * @returns Promise resolving to the SetTaskPushNotificationConfigResponse
    */
   async setTaskCallback(
-    payload: Record<string, any>,
+    taskId: string,
+    pushConfig: PushNotificationConfig | null,
+    metadata?: Record<string, any> | null,
     requestId: string | number = uuidv4(),
   ): Promise<SetTaskPushNotificationConfigResponse> {
+    const params: TaskPushNotificationConfig = {
+      id: taskId,
+      pushNotificationConfig: pushConfig,
+      metadata: metadata
+    };
+    
     const request = {
       jsonrpc: "2.0",
       id: requestId,
       method: "tasks/pushNotificationConfig/set",
-      params: payload as TaskPushNotificationConfig,
+      params,
     };
 
     return (await this._sendRequest(
@@ -346,19 +357,26 @@ export class A2AClient {
   /**
    * Get task push notification configuration
    *
-   * @param payload - Task ID payload
+   * @param taskId - Task ID
+   * @param metadata - Optional metadata
    * @param requestId - Request ID (defaults to a UUID)
    * @returns Promise resolving to the GetTaskPushNotificationConfigResponse
    */
   async getTaskCallback(
-    payload: Record<string, any>,
+    taskId: string,
+    metadata?: Record<string, any> | null,
     requestId: string | number = uuidv4(),
   ): Promise<GetTaskPushNotificationConfigResponse> {
+    const params: TaskIdParams = {
+      id: taskId,
+      metadata
+    };
+    
     const request = {
       jsonrpc: "2.0",
       id: requestId,
       method: "tasks/pushNotificationConfig/get",
-      params: payload as TaskIdParams,
+      params,
     };
 
     return (await this._sendRequest(

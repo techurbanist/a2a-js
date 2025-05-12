@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import { A2AClient, Role } from '../../src/index.js';
+import { A2AClient } from '../../src/index.js';
+// Import Role directly from protocol_objects.ts as it's exported as a type in index.ts
+import { Role } from '../../src/types/protocol_objects.js';
 
 /**
  * Simple Hello World client example

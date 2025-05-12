@@ -1,5 +1,4 @@
 import {
-  A2AError,
   CancelTaskRequest,
   CancelTaskResponse,
   CancelTaskSuccessResponse,
@@ -8,8 +7,6 @@ import {
   GetTaskRequest,
   GetTaskResponse,
   GetTaskSuccessResponse,
-  JSONRPCError,
-  JSONRPCErrorResponse,
   MessageSendParams,
   SendMessageRequest,
   SendMessageResponse,
@@ -21,11 +18,15 @@ import {
   SetTaskPushNotificationConfigResponse,
   Task,
   TaskIdParams,
-  TaskNotFoundError,
   TaskQueryParams,
   TaskResubscriptionRequest,
+  A2AError,
+  JSONRPCError,
+  JSONRPCErrorResponse,
+  TaskNotFoundError,
   UnsupportedOperationError,
 } from "../types/index.js";
+
 import { AgentExecutor } from "./agent_executor.js";
 import { InMemoryTaskStore, TaskStore } from "./task_store.js";
 import { StreamingResponseQueue } from "./streaming_response_queue.js";
@@ -147,8 +148,10 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
     task?: Task,
   ): void {
     if (task) {
-      task.messages.push(messageSendParams.message);
-      task.updatedAt = new Date().toISOString();
+      task.history = task.history || [];
+      task.history.push(messageSendParams.message);
+      task.metadata = task.metadata || {};
+      task.metadata.updatedAt = new Date().toISOString();
     }
   }
 
@@ -211,7 +214,7 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
       return {
         jsonrpc: "2.0",
         id: request.id,
-        error: TaskNotFoundError,
+        error: new TaskNotFoundError(),
       };
     }
 
@@ -236,7 +239,7 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
       return {
         jsonrpc: "2.0",
         id: request.id,
-        error: TaskNotFoundError,
+        error: new TaskNotFoundError(),
       };
     }
 
@@ -312,7 +315,7 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
     return {
       jsonrpc: "2.0",
       id: request.id,
-      error: UnsupportedOperationError,
+      error: new UnsupportedOperationError(),
     };
   }
 
@@ -328,7 +331,7 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
     return {
       jsonrpc: "2.0",
       id: request.id,
-      error: UnsupportedOperationError,
+      error: new UnsupportedOperationError(),
     };
   }
 
@@ -348,7 +351,7 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
       yield {
         jsonrpc: "2.0",
         id: request.id,
-        error: TaskNotFoundError,
+        error: new TaskNotFoundError(),
       };
       return;
     }

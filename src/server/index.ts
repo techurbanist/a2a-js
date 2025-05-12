@@ -1,4 +1,4 @@
-import { AgentCard } from "../types/index.js";
+import { AgentCard } from "../types/agent_card.js";
 import { A2ARequestHandler } from "./request_handler.js";
 import { A2AApplication } from "./app.js";
 

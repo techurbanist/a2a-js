@@ -44,6 +44,6 @@ export class InMemoryTaskStore implements TaskStore {
    * @returns Promise that resolves when the task is saved
    */
   async save(task: Task): Promise<void> {
-    this.tasks.set(task.taskId, task);
+    this.tasks.set(task.id, task);
   }
 }
