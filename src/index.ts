@@ -1,8 +1,5 @@
 // Export types
 export * from "./types/index.js";
-export * from "./types/agent_card.js";
-export * from "./types/protocol_objects.js";
-export * from "./types/errors.js";
 
 // Export client
 export * from "./client/index.js";

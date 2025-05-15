@@ -168,6 +168,40 @@ export class A2AApplication {
             })();
             break;
 
+          case "tasks/send":
+            self.requestHandler
+              .onMessageSend(jsonRpcRequest as any)
+              .then((messageResponse: any) => {
+                res.json(messageResponse);
+              })
+              .catch((error: any) => {
+                handleError(error);
+              });
+            break;
+
+          case "tasks/sendSubscribe":
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache");
+            res.setHeader("Connection", "keep-alive");
+            (async () => {
+              try {
+                const sseGenerator = self.requestHandler.onMessageSendStream(
+                  jsonRpcRequest as any,
+                );
+                for await (const chunk of sseGenerator) {
+                  if (res.writableEnded) break;
+                  res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+                }
+                if (!res.writableEnded) {
+                  res.write("event: end\ndata: {}\n\n");
+                  res.end();
+                }
+              } catch (error) {
+                handleError(error);
+              }
+            })();
+            break;
+
           default:
             res.status(400).json({
               jsonrpc: "2.0",

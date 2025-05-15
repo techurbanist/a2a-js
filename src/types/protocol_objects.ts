@@ -1,10 +1,15 @@
 /**
- * Type definitions for Protocol Data Objects in the A2A Protocol
- * Based on Section 6 of the A2A Protocol Specification
+ * @fileoverview Type definitions for Protocol Data Objects in the A2A Protocol
+ * @see docs/sections/6-Protocol-Data-Objects.md
+ *
+ * These interfaces define the structure of data exchanged within the JSON-RPC methods of the A2A protocol.
  */
 
 /**
- * The role of the message sender
+ * The role of the message sender.
+ * @enum {string}
+ * @property {string} Agent - Message from the A2A Server (the remote agent).
+ * @property {string} User - Message from the A2A Client (acting on behalf of an end-user or system).
  */
 export enum Role {
   Agent = "agent",
@@ -12,7 +17,16 @@ export enum Role {
 }
 
 /**
- * TaskState enum representing the possible lifecycle states of a Task
+ * Defines the possible lifecycle states of a Task.
+ * @enum {string}
+ * @see Section 6.3 of the A2A Protocol Specification
+ * @property {string} Submitted - Task received by server, acknowledged, but processing has not yet actively started.
+ * @property {string} Working - Task is actively being processed by the agent.
+ * @property {string} InputRequired - Agent requires additional input from the client/user to proceed. (Task is paused)
+ * @property {string} Completed - Task finished successfully. (Terminal state)
+ * @property {string} Canceled - Task was canceled by the client or potentially by the server. (Terminal state)
+ * @property {string} Failed - Task terminated due to an error during processing. (Terminal state)
+ * @property {string} Unknown - The state of the task cannot be determined (e.g., task ID invalid or expired). (Terminal state)
  */
 export enum TaskState {
   Submitted = "submitted",
@@ -25,257 +39,171 @@ export enum TaskState {
 }
 
 /**
- * Message object representing a single communication turn or contextual information
+ * Represents a single communication turn or a piece of contextual information within a Task.
+ * @see Section 6.4 of the A2A Protocol Specification
+ * @property {Role} role - Indicates the sender of the message: "user" (from A2A Client) or "agent" (from A2A Server).
+ * @property {Part[]} parts - Array of content parts. Must contain at least one part.
+ * @property {Record<string, any>|null} [metadata] - Arbitrary key-value metadata associated with this message.
  */
 export interface Message {
-  /**
-   * Unique identifier for the message
-   */
-  messageId?: string;
-  
-  /**
-   * Indicates the sender of the message: "user" (from A2A Client) or "agent" (from A2A Server)
-   */
-  role: Role | string;
-
-  /**
-   * Array of content parts. Must contain at least one part.
-   */
+  role: Role;
   parts: Part[];
-
-  /**
-   * Task ID the message is associated with (optional)
-   */
-  taskId?: string;
-
-  /**
-   * Whether this message is the final one in a stream (optional)
-   */
-  final?: boolean;
-
-  /**
-   * Arbitrary key-value metadata associated with this message.
-   */
   metadata?: Record<string, any> | null;
 }
 
 /**
- * Base properties common to all message parts
+ * Base properties common to all message parts.
+ * @property {Record<string, any>|null} [metadata] - Optional metadata associated with the part.
  */
 export interface PartBase {
-  /**
-   * Optional metadata associated with the part
-   */
   metadata?: Record<string, any> | null;
 }
 
 /**
- * Text part in a message
+ * For conveying plain textual content.
+ * @see Section 6.5.1 of the A2A Protocol Specification
+ * @property {"text"} type - Discriminator for text part.
+ * @property {string} text - The actual textual content.
+ * @property {Record<string, any>|null} [metadata] - Optional metadata (e.g., language, formatting hints).
  */
 export interface TextPart extends PartBase {
-  /**
-   * Part type - text for TextParts
-   */
   type: "text";
-
-  /**
-   * Text content
-   */
   text: string;
 }
 
 /**
- * Data part in a message
+ * For conveying structured JSON data.
+ * @see Section 6.5.3 of the A2A Protocol Specification
+ * @property {"data"} type - Discriminator for data part.
+ * @property {Record<string, any>|any[]} data - The structured JSON data payload (object or array).
+ * @property {Record<string, any>|null} [metadata] - Optional metadata (e.g., schema URL, version).
  */
 export interface DataPart extends PartBase {
-  /**
-   * Part type - data for DataParts
-   */
   type: "data";
-
-  /**
-   * Structured data content
-   */
-  data: Record<string, any>;
+  data: Record<string, any> | any[];
 }
 
 /**
- * Interface representing file content in messages
+ * Represents the data or reference for a file, used within a FilePart.
+ * @see Section 6.6 of the A2A Protocol Specification
+ * @property {string|null} [name] - Original filename (e.g., "report.pdf").
+ * @property {string|null} [mimeType] - MIME type (e.g., "image/png"). Strongly recommended.
+ * @property {string|null} [bytes] - Base64 encoded file content. If file content is being transmitted, exactly one of `bytes` or `uri` MUST be non-null.
+ * @property {string|null} [uri] - URI (absolute URL strongly recommended) to file content. If file content is being transmitted, exactly one of `bytes` or `uri` MUST be non-null.
+ *
+ * @note Both `bytes` and `uri` MAY be null or absent if the FilePart is only a reference or metadata about a file whose content is not being transferred in this specific part.
  */
 export interface FileContent {
-  /**
-   * Optional name of the file, if known (e.g., "document.pdf", "avatar.png")
-   */
   name?: string | null;
-
-  /**
-   * Optional MIME type of the file (e.g., "application/pdf", "image/png")
-   * Strongly recommended for proper handling
-   */
   mimeType?: string | null;
-
-  /**
-   * Base64 encoded string of the raw file content.
-   * Use this for embedding small to medium-sized files directly.
-   */
   bytes?: string | null;
-
-  /**
-   * A URI (absolute URL is STRONGLY recommended) pointing to the file content.
-   * Accessibility of this URI depends on the context (e.g., public URL, pre-signed URL, internal URL).
-   * The client and server must have a way to resolve and access this URI if used.
-   */
   uri?: string | null;
-
-  // Constraint: If file content is being transmitted, exactly one of `bytes` or `uri` MUST be non-null.
-  // Both MAY be `null` or absent if the `FilePart` is merely representing a file reference
-  // without transmitting its content in the current message (e.g., referring to a previously uploaded file).
 }
 
 /**
- * File part in a message
+ * For conveying file-based content.
+ * @see Section 6.5.2 of the A2A Protocol Specification
+ * @property {"file"} type - Discriminator for file part.
+ * @property {FileContent} file - Contains the file details and data (or reference).
+ * @property {Record<string, any>|null} [metadata] - Optional metadata (e.g., purpose of the file).
  */
 export interface FilePart extends PartBase {
-  /**
-   * Part type - file for FileParts
-   */
   type: "file";
-
-  /**
-   * The file content - either URI or bytes
-   */
   file: FileContent;
 }
 
 /**
- * Union type of all possible message parts
+ * Union type of all possible message parts.
+ * @see Section 6.5 of the A2A Protocol Specification
  */
 export type Part = TextPart | DataPart | FilePart;
 
 /**
- * Task artifact
- */
-export interface TaskArtifact {
-  /**
-   * Unique identifier for the artifact
-   */
-  artifactId: string;
-
-  /**
-   * Mime type of the artifact
-   */
-  mimeType: string;
-
-  /**
-   * The URI where the artifact can be accessed
-   */
-  uri?: string;
-
-  /**
-   * Base64 encoded content of the artifact
-   */
-  bytes?: string;
-  
-  /**
-   * Structured data content (for application/json mime type)
-   */
-  data?: Record<string, any>;
-}
-
-/**
- * Represents a tangible output generated by the agent during a task
- * Based on Section 6.7 of the A2A Protocol Specification
+ * Represents a tangible output generated by the agent during a task.
+ * @see Section 6.7 of the A2A Protocol Specification
+ * @property {string|null} [name] - Descriptive name for the artifact.
+ * @property {string|null} [description] - Human-readable description of the artifact. [CommonMark](https://commonmark.org/) MAY be used.
+ * @property {Part[]} parts - Content of the artifact, as one or more Part objects. Must have at least one.
+ * @property {number} [index=0] - Non-negative index for ordering artifacts or identifying chunks during streaming. Default: 0 if omitted.
+ * @property {boolean|null} [append=false] - In streaming, true means append parts to artifact at index; false (default) means replace.
+ * @property {boolean|null} [lastChunk=false] - In streaming, true indicates this is the final update for the artifact at this index.
+ * @property {Record<string, any>|null} [metadata] - Arbitrary key-value metadata associated with the artifact.
  */
 export interface Artifact {
-  /**
-   * Descriptive name for the artifact
-   */
   name?: string | null;
-
-  /**
-   * Human-readable description of the artifact
-   */
   description?: string | null;
-
-  /**
-   * Content of the artifact, as one or more Part objects
-   */
   parts: Part[];
-
-  /**
-   * Non-negative index for ordering artifacts or identifying chunks during streaming
-   */
   index?: number;
-
-  /**
-   * In streaming, true means append parts to artifact at index; false (default) means replace
-   */
   append?: boolean | null;
-
-  /**
-   * In streaming, true indicates this is the final update for the artifact at this index
-   */
   lastChunk?: boolean | null;
-
-  /**
-   * Arbitrary key-value metadata associated with the artifact
-   */
   metadata?: Record<string, any> | null;
 }
 
 /**
- * Represents the current state and associated context of a Task
- * Based on Section 6.2 of the A2A Protocol Specification
+ * Represents the current state and associated context of a Task.
+ * @see Section 6.2 of the A2A Protocol Specification
+ * @property {TaskState} state - Current lifecycle state of the task.
+ * @property {Message|null} [message] - Optional message providing context for the current status.
+ * @property {string|null} [timestamp] - Timestamp (UTC strongly recommended) when this status was recorded. Format: ISO 8601 date-time string (e.g., "2023-10-27T10:00:00Z").
  */
 export interface TaskStatus {
-  /**
-   * Current lifecycle state of the task
-   */
   state: TaskState;
-
-  /**
-   * Optional message providing context for the current status
-   */
   message?: Message | null;
-
-  /**
-   * Timestamp (UTC recommended) when this status was recorded
-   */
   timestamp?: string | null;
 }
 
 /**
- * Represents a Task in the A2A protocol
- * Based on Section 6.1 of the A2A Protocol Specification
+ * Represents the stateful unit of work being processed by the A2A Server for an A2A Client.
+ * @see Section 6.1 of the A2A Protocol Specification
+ * @property {string} id - Unique identifier for the task (e.g., UUID v4), typically client-generated. MUST be used by the server to refer to this task.
+ * @property {string|null} [sessionId] - Optional client-generated ID to group related tasks into a session.
+ * @property {TaskStatus} status - Current status of the task (state, message, timestamp).
+ * @property {Artifact[]|null} [artifacts] - Array of outputs generated by the agent for this task.
+ * @property {Message[]|null} [history] - Optional array of recent messages exchanged, if requested by historyLength.
+ * @property {Record<string, any>|null} [metadata] - Arbitrary key-value metadata associated with the task.
  */
 export interface Task {
-  /**
-   * Unique identifier for the task (e.g., UUID), typically client-generated
-   */
   id: string;
-
-  /**
-   * Optional client-generated ID to group related tasks into a session
-   */
   sessionId?: string | null;
-
-  /**
-   * Current status of the task (state, message, timestamp)
-   */
   status: TaskStatus;
-
-  /**
-   * Array of outputs generated by the agent for this task
-   */
   artifacts?: Artifact[] | null;
-
-  /**
-   * Optional array of recent messages exchanged, if requested by historyLength
-   */
   history?: Message[] | null;
+  metadata?: Record<string, any> | null;
+}
 
-  /**
-   * Arbitrary key-value metadata associated with the task
-   */
+/**
+ * A generic structure for specifying authentication requirements, typically used within PushNotificationConfig.
+ * @see Section 6.9 of the A2A Protocol Specification
+ * @property {string[]} schemes - Array of auth scheme names the A2A Server must use when calling the client's webhook (e.g., "Bearer", "ApiKey").
+ * @property {string|null} [credentials] - Optional static credentials or scheme-specific configuration info. **Handle with EXTREME CAUTION if secrets are involved.** Prefer server-side dynamic credential fetching where possible.
+ */
+export interface AuthenticationInfo {
+  schemes: string[];
+  credentials?: string | null;
+}
+
+/**
+ * Configuration provided by the client to the server for sending asynchronous push notifications about task updates.
+ * @see Section 6.8 of the A2A Protocol Specification
+ * @property {string} url - Absolute HTTPS webhook URL for the A2A Server to POST task updates to.
+ * @property {string|null} [token] - Optional client-generated opaque token for the client's webhook receiver to validate the notification.
+ * @property {AuthenticationInfo|null} [authentication] - Authentication details the A2A Server must use when calling the url.
+ */
+export interface PushNotificationConfig {
+  url: string;
+  token?: string | null;
+  authentication?: AuthenticationInfo | null;
+}
+
+/**
+ * Used as the params object for the tasks/pushNotification/set method and as the result object for the tasks/pushNotification/get method.
+ * @see Section 6.10 of the A2A Protocol Specification
+ * @property {string} id - The ID of the task to configure push notifications for, or retrieve configuration from.
+ * @property {PushNotificationConfig|null} pushNotificationConfig - The push notification configuration. For set, the desired config. For get, the current config (secrets MAY be omitted by server). null might clear config on set.
+ * @property {Record<string, any>|null} [metadata] - Arbitrary metadata for this specific request.
+ */
+export interface TaskPushNotificationConfig {
+  id: string;
+  pushNotificationConfig: PushNotificationConfig | null;
   metadata?: Record<string, any> | null;
 }

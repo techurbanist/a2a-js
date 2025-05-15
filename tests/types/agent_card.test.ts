@@ -4,36 +4,34 @@ import {
   AgentCard,
   AgentProvider,
   AgentSkill
-} from '../src/types/agent_card.js';
+} from '../../src/types/agent_card.js';
 
 describe('Agent Card Types', () => {
   // Helper data
-  const MINIMAL_AGENT_AUTH = { schemes: ['Bearer'] };
-  const FULL_AGENT_AUTH = {
+  const MINIMAL_AGENT_AUTH: AgentAuthentication = { schemes: ['Bearer'] };
+  const FULL_AGENT_AUTH: AgentAuthentication = {
     schemes: ['Bearer', 'Basic'],
     credentials: '{"tokenUrl": "https://example.com/token"}',
   };
 
-  const MINIMAL_AGENT_SKILL = {
+  const MINIMAL_AGENT_SKILL: AgentSkill = {
     id: 'skill-123',
     name: 'Recipe Finder',
-    description: 'Finds recipes',
-    tags: ['cooking'],
+    // description, tags, examples, inputModes, outputModes omitted (optional)
   };
 
-  const MINIMAL_AGENT_CARD = {
+  const MINIMAL_AGENT_CARD: AgentCard = {
     authentication: MINIMAL_AGENT_AUTH,
-    capabilities: {}, // Required per spec but implementation makes it optional
-    defaultInputModes: ['text/plain'],
-    defaultOutputModes: ['application/json'],
-    description: 'Test Agent',
+    capabilities: {}, // Required per type, can be empty
+    // defaultInputModes, defaultOutputModes omitted (optional)
+    // description omitted (optional)
     name: 'TestAgent',
     skills: [MINIMAL_AGENT_SKILL],
     url: 'http://example.com/agent',
     version: '1.0',
   };
   
-  const FULL_AGENT_CARD = {
+  const FULL_AGENT_CARD: AgentCard = {
     authentication: MINIMAL_AGENT_AUTH,
     capabilities: {
       streaming: true,
@@ -60,7 +58,7 @@ describe('Agent Card Types', () => {
   });
 
   test('AgentCapabilities should handle optional fields as defined in spec', () => {
-    // All fields are optional per spec
+    // All fields are optional
     const caps: AgentCapabilities = {}; 
     expect(caps.pushNotifications).toBeUndefined();
     expect(caps.stateTransitionHistory).toBeUndefined();
@@ -76,22 +74,28 @@ describe('Agent Card Types', () => {
     expect(capsFull.streaming).toBe(true);
   });
 
-  test('AgentProvider should have organization and url', () => {
+  test('AgentProvider should have organization as required and url as optional', () => {
     const provider: AgentProvider = {
+      organization: 'Test Org',
+      // url omitted (optional)
+    };
+    expect(provider.organization).toBe('Test Org');
+    expect(provider.url).toBeUndefined();
+
+    const providerWithUrl: AgentProvider = {
       organization: 'Test Org',
       url: 'http://test.org'
     };
-    expect(provider.organization).toBe('Test Org');
-    expect(provider.url).toBe('http://test.org');
+    expect(providerWithUrl.organization).toBe('Test Org');
+    expect(providerWithUrl.url).toBe('http://test.org');
   });
 
   test('AgentSkill should have required and optional fields according to spec', () => {
-    // Note: In the spec, description and tags are optional but the implementation has them as required
     const skill: AgentSkill = MINIMAL_AGENT_SKILL;
     expect(skill.id).toBe('skill-123');
     expect(skill.name).toBe('Recipe Finder');
-    expect(skill.description).toBe('Finds recipes');
-    expect(skill.tags).toEqual(['cooking']);
+    expect(skill.description).toBeUndefined();
+    expect(skill.tags).toBeUndefined();
     expect(skill.examples).toBeUndefined();
     expect(skill.inputModes).toBeUndefined();
     expect(skill.outputModes).toBeUndefined();
@@ -99,14 +103,17 @@ describe('Agent Card Types', () => {
 
   test('AgentCard should have all required fields according to spec', () => {
     const card: AgentCard = MINIMAL_AGENT_CARD;
-    expect(card.name).toBe('TestAgent');  // Required in spec
-    expect(card.version).toBe('1.0');     // Required in spec
-    expect(card.url).toBe('http://example.com/agent'); // Required in spec
-    expect(card.authentication.schemes).toEqual(['Bearer']);
-    expect(card.skills.length).toBe(1);   // Required in spec, must have at least one skill
+    expect(card.name).toBe('TestAgent');
+    expect(card.version).toBe('1.0');
+    expect(card.url).toBe('http://example.com/agent');
+    expect(card.authentication?.schemes).toEqual(['Bearer']);
+    expect(card.skills.length).toBe(1);
     expect(card.skills[0].id).toBe('skill-123');
-    expect(card.provider).toBeUndefined(); // Optional in spec
-    expect(card.capabilities).toBeDefined(); // Required in spec, optional in implementation
+    expect(card.provider).toBeUndefined();
+    expect(card.capabilities).toBeDefined();
+    // defaultInputModes and defaultOutputModes are optional, may be undefined
+    expect(card.defaultInputModes).toBeUndefined();
+    expect(card.defaultOutputModes).toBeUndefined();
   });
 
   test('AgentCard should accept skills with optional fields as defined in spec', () => {
@@ -128,6 +135,8 @@ describe('Agent Card Types', () => {
     expect(card.skills[0].examples).toEqual(['Generate an image of a sunset', 'Create a picture of mountains']);
     expect(card.skills[0].inputModes).toEqual(['text/plain']);
     expect(card.skills[0].outputModes).toEqual(['image/png', 'image/jpeg']);
+    expect(card.skills[0].description).toBe('Creates images from descriptions');
+    expect(card.skills[0].tags).toEqual(['graphics', 'ai']);
   });
 
   test('AgentCard should accept provider information as optional per spec', () => {
@@ -146,11 +155,19 @@ describe('Agent Card Types', () => {
     expect(card.provider?.url).toBe('https://test-corp.example.com');
   });
 
-  test('AgentCard should handle defaultInputModes and defaultOutputModes per spec', () => {
-    // According to spec, these default to ["text/plain"] if omitted
-    // But implementation makes them required
+  test('AgentCard should handle defaultInputModes and defaultOutputModes as optional', () => {
+    // Omitted fields should be undefined
     const card = MINIMAL_AGENT_CARD;
-    expect(card.defaultInputModes).toEqual(['text/plain']);
-    expect(card.defaultOutputModes).toEqual(['application/json']);
+    expect(card.defaultInputModes).toBeUndefined();
+    expect(card.defaultOutputModes).toBeUndefined();
+
+    // If present, should match provided values
+    const cardWithDefaults: AgentCard = {
+      ...MINIMAL_AGENT_CARD,
+      defaultInputModes: ['text/plain'],
+      defaultOutputModes: ['application/json']
+    };
+    expect(cardWithDefaults.defaultInputModes).toEqual(['text/plain']);
+    expect(cardWithDefaults.defaultOutputModes).toEqual(['application/json']);
   });
 });

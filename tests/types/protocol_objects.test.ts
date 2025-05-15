@@ -10,19 +10,17 @@ import {
   Role,
   Artifact,
   PushNotificationConfig
-} from '../src/types';
+} from '../../src/types/protocol_objects';
 
 describe('Protocol Data Objects Types', () => {
   // Test Role values
   describe('Message Roles', () => {
     test('should correctly identify user and agent roles', () => {
       const userMessage: Message = {
-        messageId: 'msg-1',
         role: Role.User,
         parts: [{ type: 'text', text: 'Hello' }]
       };
       const agentMessage: Message = {
-        messageId: 'msg-2',
         role: Role.Agent,
         parts: [{ type: 'text', text: 'Hello, how can I help?' }]
       };
@@ -51,13 +49,13 @@ describe('Protocol Data Objects Types', () => {
       const taskStatus: TaskStatus = {
         state: TaskState.Working,
         message: {
-          role: 'agent',
+          role: Role.Agent,
           parts: [{ type: 'text', text: 'I am working on your request' }]
         }
       };
       
       expect(taskStatus.state).toBe(TaskState.Working);
-      expect(taskStatus.message?.role).toBe('agent');
+      expect(taskStatus.message?.role).toBe(Role.Agent);
       
       // With timestamp
       const statusWithTimestamp: TaskStatus = {
@@ -94,8 +92,10 @@ describe('Protocol Data Objects Types', () => {
         data: { key: 'value', nested: { foo: 'bar' } }
       };
       expect(dataPart.type).toBe('data');
-      expect(dataPart.data.key).toBe('value');
-      expect(dataPart.data.nested.foo).toBe('bar');
+      if (!Array.isArray(dataPart.data)) {
+        expect(dataPart.data['key']).toBe('value');
+        expect((dataPart.data as any).nested.foo).toBe('bar');
+      }
     });
 
     test('FilePart should properly handle file content', () => {
@@ -131,25 +131,25 @@ describe('Protocol Data Objects Types', () => {
       expect(filePartWithBytes.file.name).toBe('hello.txt');
       
       // Either uri or bytes must be present, but not both
-      expect('uri' in fileContentWithUri || 'bytes' in fileContentWithUri).toBeTruthy();
-      expect('uri' in fileContentWithBytes || 'bytes' in fileContentWithBytes).toBeTruthy();
+      expect(!!fileContentWithUri.uri || !!fileContentWithUri.bytes).toBeTruthy();
+      expect(!!fileContentWithBytes.uri || !!fileContentWithBytes.bytes).toBeTruthy();
     });
 
     test('Message should have required fields', () => {
       const message: Message = {
-        role: 'user',
+        role: Role.User,
         parts: [
           { type: 'text', text: 'Hello, agent!' }
         ]
       };
 
-      expect(message.role).toBe('user');
+      expect(message.role).toBe(Role.User);
       expect(message.parts.length).toBe(1);
       expect(message.parts[0].type).toBe('text');
       
       // Message with optional metadata
       const messageWithMetadata: Message = {
-        role: 'agent',
+        role: Role.Agent,
         parts: [{ type: 'text', text: 'Hello!' }],
         metadata: { sourceSystem: 'test' }
       };
@@ -159,7 +159,7 @@ describe('Protocol Data Objects Types', () => {
 
     test('Message can contain multiple part types', () => {
       const multiPartMessage: Message = {
-        role: 'agent',
+        role: Role.Agent,
         parts: [
           {
             type: 'text',
@@ -234,7 +234,7 @@ describe('Protocol Data Objects Types', () => {
       const taskStatus: TaskStatus = {
         state: TaskState.Working,
         message: {
-          role: 'agent',
+          role: Role.Agent,
           parts: [{ type: 'text', text: 'Processing your request' }]
         },
         timestamp: '2025-05-11T10:05:00Z'
@@ -266,12 +266,12 @@ describe('Protocol Data Objects Types', () => {
       };
       
       const userMessage: Message = {
-        role: 'user',
+        role: Role.User,
         parts: [{ type: 'text', text: 'Generate a report' }]
       };
       
       const agentMessage: Message = {
-        role: 'agent',
+        role: Role.Agent,
         parts: [{ type: 'text', text: 'Here is your report' }]
       };
 

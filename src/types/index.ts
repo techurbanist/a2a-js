@@ -2,18 +2,22 @@
  * Type definitions for the A2A Protocol
  */
 
-export type {
+export { 
   JSONRPCError,
   JSONRPCErrorResponse,
-  A2AError
-} from './errors.js';
-
-// Import and re-export error enums and classes
-export { 
+  A2AError,
   JSONRPCErrorCode,
-  TaskNotFoundError, 
-  UnsupportedOperationError, 
-  ContentTypeNotSupportedError 
+  TaskNotFoundError,
+  TaskNotCancelableError,
+  PushNotificationNotSupportedError,
+  OperationNotSupportedError,
+  ContentTypeNotSupportedError,
+  StreamingNotSupportedError,
+  AuthenticationRequiredError,
+  AuthorizationFailedError,
+  InvalidTaskStateError,
+  RateLimitExceededError,
+  ResourceUnavailableError
 } from './errors.js';
 
 export type {
@@ -31,16 +35,14 @@ export type {
   FileContent,
   Part,
   Task,
-  TaskArtifact,
   Artifact,
-  TaskStatus
+  TaskStatus,
+  PushNotificationConfig,
+  AuthenticationInfo
 } from './protocol_objects.js';
 
-// Import and re-export enums
-export {
-  Role,
-  TaskState
-} from './protocol_objects.js';
+// Export enums as values
+export { Role, TaskState } from './protocol_objects.js';
 
 export type {
   AgentAuthentication,
@@ -51,7 +53,6 @@ export type {
 } from './agent_card.js';
 
 export type {
-  PushNotificationConfig,
   MessageSendParams,
   TaskSendParams,
   TaskQueryParams,
@@ -77,5 +78,6 @@ export type {
   GetTaskPushNotificationConfigResponse,
   TaskResubscriptionRequest,
   TaskStatusUpdateEvent,
-  TaskArtifactUpdateEvent
+  TaskArtifactUpdateEvent,
+  SendTaskStreamingResponse
 } from './rpc_methods.js';

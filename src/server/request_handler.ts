@@ -24,7 +24,7 @@ import {
   JSONRPCError,
   JSONRPCErrorResponse,
   TaskNotFoundError,
-  UnsupportedOperationError,
+  OperationNotSupportedError,
 } from "../types/index.js";
 
 import { AgentExecutor } from "./agent_executor.js";
@@ -264,8 +264,10 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
     const messageSendParams = request.params;
 
     let task: Task | undefined;
-    if (messageSendParams.message.taskId) {
-      task = await this.taskStore.get(messageSendParams.message.taskId);
+    // Use the id from messageSendParams (TaskSendParams) instead of message.taskId
+    // Message does not have a taskId property; the task id is in the params
+    if ((messageSendParams as any).id) {
+      task = await this.taskStore.get((messageSendParams as any).id);
       this._appendMessageToTask(messageSendParams, task);
     }
 
@@ -296,8 +298,9 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
     const messageSendParams = request.params;
 
     let task: Task | undefined;
-    if (messageSendParams.message.taskId) {
-      task = await this.taskStore.get(messageSendParams.message.taskId);
+    // Use the id from messageSendParams (TaskSendParams) instead of message.taskId
+    if ((messageSendParams as any).id) {
+      task = await this.taskStore.get((messageSendParams as any).id);
     }
 
     yield* this._setupSSEConsumer(task, request);
@@ -315,7 +318,7 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
     return {
       jsonrpc: "2.0",
       id: request.id,
-      error: new UnsupportedOperationError(),
+      error: new OperationNotSupportedError(),
     };
   }
 
@@ -331,7 +334,7 @@ export class DefaultA2ARequestHandler implements A2ARequestHandler {
     return {
       jsonrpc: "2.0",
       id: request.id,
-      error: new UnsupportedOperationError(),
+      error: new OperationNotSupportedError(),
     };
   }
 

@@ -41,172 +41,150 @@ npm install a2a-js
 ### Client Example
 
 ```bash
-npm install a2a-js uuid axios
+npm install a2a-js uuid
 ```
 
-```javascript
-import axios from 'axios';
+```typescript
 import { v4 as uuidv4 } from 'uuid';
-import { A2AClient, Role } from 'a2a-js';
+import { A2AClient } from 'a2a-js';
+import { Role, TaskState, Part, TaskSendParams, SendTaskStreamingResponse, TaskStatusUpdateEvent, TaskArtifactUpdateEvent } from 'a2a-js';
 
 async function main() {
-  const axiosClient = axios.create();
-  
-  // Create the A2A client
-  const client = await A2AClient.getClientFromAgentCardUrl(
-    axiosClient,
-    'http://localhost:3000'
-  );
+  // Create the A2A client directly
+  const client = new A2AClient('http://localhost:9999/', fetch);
 
-  // Send a basic message
-  const basicResponse = await client.sendMessage({
-    message: {
-      role: Role.User,
-      parts: [{ type: 'text', text: 'Hello agent' }],
-      messageId: uuidv4()
-    }
-  });
-  
-  // Process the response
-  if ('result' in basicResponse) {
-    const successResponse = basicResponse;
-    const resultMessage = successResponse.result;
-    
-    console.log('Response:', JSON.stringify(resultMessage, null, 2));
-    
-    // Extract text parts
-    const textContent = resultMessage.parts
-      .filter(part => part.type === 'text')
-      .map(part => part.text)
-      .join('');
-    
-    console.log('Message content:', textContent);
-  } else {
-    // Handle error response
-    console.error('Error:', basicResponse.error);
-  }
-  
-  // Send a streaming message
+  console.log('Testing basic request...');
   try {
-    const streamingChunks = [];
-    
-    await client.sendMessageStreaming(
-      {
-        message: {
-          role: Role.User,
-          parts: [{ type: 'text', text: 'Hello streaming' }],
-          messageId: uuidv4()
-        }
+    const params: TaskSendParams = {
+      id: uuidv4(),
+      message: {
+        role: Role.User,
+        parts: [{ type: 'text', text: 'Hello' }],
       },
-      uuidv4(),
-      (chunk) => {
-        if ('result' in chunk) {
-          // Handle success chunks
-          const message = chunk.result;
-          streamingChunks.push(message);
-          
-          // Extract text from the message
-          if (message.parts && message.parts[0].type === 'text') {
-            const text = message.parts[0].text;
-            process.stdout.write(text); // Print without newline
-            
-            // Print newline on final chunk
-            if (message.final) {
-              process.stdout.write('\n');
+    };
+    const basicResponse = await client.sendTask(params);
+    console.log('Basic Response:', JSON.stringify(basicResponse, null, 2));
+  } catch (error) {
+    console.error('Basic request error:', error);
+  }
+
+  console.log('\nTesting streaming request...');
+  try {
+    const streamParams: TaskSendParams = {
+      id: uuidv4(),
+      message: {
+        role: Role.User,
+        parts: [{ type: 'text', text: 'Hello streaming' }],
+      },
+    };
+    const stream = client.sendTaskSubscribe(streamParams);
+    for await (const event of stream as AsyncGenerator<SendTaskStreamingResponse, void, unknown>) {
+      if (!event || (typeof event === 'object' && Object.keys(event).length === 0)) continue;
+      if ('result' in event && event.result) {
+        const result = event.result;
+        if (result.type === 'taskStatusUpdate') {
+          const statusEvent = result as TaskStatusUpdateEvent;
+          const state = statusEvent.status.state;
+          const message = statusEvent.status.message;
+          if (state === TaskState.Working && message && message.parts) {
+            const textParts = message.parts
+              .filter((part) => part.type === 'text')
+              .map((part) => (part as Part & { text: string }).text)
+              .join('');
+            if (textParts) {
+              console.log('Message content:', textParts);
             }
+          } else if ([TaskState.Completed, TaskState.Canceled, TaskState.Failed, TaskState.InputRequired].includes(state)) {
+            console.log('Task completed:', JSON.stringify(statusEvent, null, 2));
           }
+        } else if (result.type === 'taskArtifactUpdate') {
+          const artifactEvent = result as TaskArtifactUpdateEvent;
+          console.log('Artifact event:', JSON.stringify(artifactEvent, null, 2));
         } else {
-          // Handle error chunks
-          console.error('Stream error:', chunk.error);
+          console.log('Stream Event:', JSON.stringify(result, null, 2));
         }
+      } else if ('error' in event && event.error) {
+        console.error('Stream error:', JSON.stringify(event.error, null, 2));
+      } else {
+        console.log('Unknown stream event:', JSON.stringify(event, null, 2));
       }
-    );
-    
-    // Combine all chunks to get the complete message
-    const fullText = streamingChunks
-      .map(message => message.parts[0].type === 'text' ? message.parts[0].text : '')
-      .join('');
-    
-    console.log('\nFull message:', fullText);
+    }
+    console.log('Streaming complete');
   } catch (error) {
     console.error('Streaming error:', error);
   }
 }
 
-main().catch(error => console.error('Error:', error));
+main().catch(error => {
+  console.error('Error:', error);
+  process.exit(1);
+});
 ```
 
 ### Server Example
 
-```javascript
-import { v4 as uuidv4 } from 'uuid';
-import { 
-  A2AServer, 
+```typescript
+import {
+  Role as RoleEnum,
+  AgentCard,
+  AgentSkill,
+  A2AServer,
   DefaultA2ARequestHandler,
-  Role,
-  UnsupportedOperationError
+  Message,
+  Part,
+  Task,
+  OperationNotSupportedError,
+  SendMessageRequest,
+  SendMessageResponse,
+  SendMessageStreamingRequest,
+  SendMessageStreamingResponse,
+  CancelTaskRequest,
+  CancelTaskResponse,
+  TaskResubscriptionRequest
 } from 'a2a-js';
 
-/**
- * Simple agent implementation
- */
 class HelloWorldAgent {
-  /**
-   * Standard synchronous response
-   */
-  async invoke() {
+  async invoke(): Promise<string> {
     return 'Hello World';
   }
-
-  /**
-   * Stream the response in multiple chunks
-   */
-  async *stream() {
+  async *stream(): AsyncGenerator<{ content: string, done: boolean }, void, unknown> {
     yield { content: 'Hello ', done: false };
+    await new Promise(resolve => setTimeout(resolve, 2000));
     yield { content: 'World', done: false };
+    await new Promise(resolve => setTimeout(resolve, 1000));
     yield { content: '!', done: true };
   }
 }
 
-/**
- * Agent executor implementation
- */
-class MyAgentExecutor {
+class HelloWorldAgentExecutor {
+  private agent: HelloWorldAgent;
   constructor() {
     this.agent = new HelloWorldAgent();
   }
-
-  /**
-   * Handle standard message request
-   */
-  async onMessageSend(request, task) {
+  async onMessageSend(
+    request: SendMessageRequest,
+    task?: Task
+  ): Promise<SendMessageResponse> {
     const result = await this.agent.invoke();
-    
-    const message = {
-      role: Role.Agent,
-      parts: [{ type: 'text', text: result }],
-      messageId: uuidv4(),
+    const message: Message = {
+      role: RoleEnum.Agent,
+      parts: [{ type: 'text', text: result } as Part]
     };
-
     return {
       jsonrpc: '2.0',
       id: request.id,
       result: message
     };
   }
-
-  /**
-   * Handle streaming message request
-   */
-  async *onMessageStream(request, task) {
+  async *onMessageStream(
+    request: SendMessageStreamingRequest,
+    task?: Task
+  ): AsyncGenerator<SendMessageStreamingResponse, void, unknown> {
     for await (const chunk of this.agent.stream()) {
-      const message = {
-        role: Role.Agent,
-        parts: [{ type: 'text', text: chunk.content }],
-        messageId: uuidv4(),
-        final: chunk.done,
+      const message: Message = {
+        role: RoleEnum.Agent,
+        parts: [{ type: 'text', text: chunk.content } as Part]
       };
-
       yield {
         jsonrpc: '2.0',
         id: request.id,
@@ -214,67 +192,54 @@ class MyAgentExecutor {
       };
     }
   }
-
-  /**
-   * Handle task cancellation
-   */
-  async onCancel(request, task) {
+  async onCancel(
+    request: CancelTaskRequest,
+    task: Task
+  ): Promise<CancelTaskResponse> {
     return {
       jsonrpc: '2.0',
       id: request.id,
-      error: UnsupportedOperationError
+      error: new OperationNotSupportedError()
     };
   }
-
-  /**
-   * Handle task resubscription
-   */
-  async *onResubscribe(request, task) {
+  async *onResubscribe(
+    request: TaskResubscriptionRequest,
+    task: Task
+  ): AsyncGenerator<SendMessageStreamingResponse, void, unknown> {
     yield {
       jsonrpc: '2.0',
       id: request.id,
-      error: UnsupportedOperationError
+      error: new OperationNotSupportedError()
     };
   }
 }
 
-// Define the agent card
-const agentCard = {
+const skill: AgentSkill = {
+  id: 'hello_world',
+  name: 'Returns hello world',
+  description: 'just returns hello world',
+  tags: ['hello world'],
+  examples: ['hi', 'hello world'],
+};
+const agentCard: AgentCard = {
   name: 'Hello World Agent',
-  description: 'A simple A2A agent example',
-  url: 'http://localhost:3000',
+  description: 'Just a hello world agent',
+  url: 'http://localhost:9999/',
   version: '1.0.0',
   defaultInputModes: ['text'],
   defaultOutputModes: ['text'],
-  capabilities: {},
-  skills: [{
-    id: 'hello_world',
-    name: 'Hello World',
-    description: 'Responds with Hello World',
-    tags: ['example'],
-    examples: ['hello', 'hi'],
-  }],
+  capabilities: { streaming: true },
+  skills: [skill],
   authentication: {
-    schemes: ['public']
+    schemes: ['public'],
   }
 };
-
-// Set up the server
-const PORT = 3000;
-
-// Create the request handler with our agent executor
-const requestHandler = new DefaultA2ARequestHandler(new MyAgentExecutor());
-
-// Create the server
+const requestHandler = new DefaultA2ARequestHandler(
+  new HelloWorldAgentExecutor()
+);
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 9999;
 const server = new A2AServer(agentCard, requestHandler);
-
-// Start the server
-try {
-  server.start({ port: PORT, host: '0.0.0.0' });
-  console.log(`A2A server running at http://localhost:${PORT}`);
-} catch (error) {
-  console.error('Failed to start server:', error);
-}
+server.start({ port });
 ```
 
 ## Examples
@@ -282,6 +247,13 @@ try {
 Check the `examples/` directory for more usage examples:
 - Basic client-server communication (see `examples/helloworld/client.ts` and `examples/helloworld/server.ts`)
 - Streaming responses (demonstrated in the helloworld examples)
+- **Common A2A workflows** (see `examples/common-workflows/`):
+  - Basic task execution (synchronous/polling)
+  - Streaming task execution (SSE)
+  - Multi-turn interaction (input required)
+  - Push notification setup and usage
+  - File exchange (upload/download)
+  - Structured data exchange (requesting/providing JSON)
 
 The SDK also supports long-running tasks using the task management system defined in `src/server/task_store.ts`.
 

@@ -4,9 +4,8 @@ import {
   JSONRPCErrorResponse,
   A2AError,
   TaskNotFoundError,
-  UnsupportedOperationError,
   ContentTypeNotSupportedError
-} from '../src/types';
+} from '../../src/types/errors';
 
 describe('Error Types', () => {
   test('JSONRPCErrorCode enum should have correct values', () => {
@@ -56,10 +55,10 @@ describe('Error Types', () => {
   });
 
   test('Specialized error classes should be defined', () => {
-    // Since A2AError is exported as a type, not a class, we can only check that
-    // the error classes are defined as functions
+    // Since A2AError is an interface, check that error classes are defined as constructors
     expect(typeof TaskNotFoundError).toBe('function');
-    expect(typeof UnsupportedOperationError).toBe('function');
+    // OperationNotSupportedError is the correct class name per the spec
+    expect(typeof require('../../src/types/errors').OperationNotSupportedError).toBe('function');
     expect(typeof ContentTypeNotSupportedError).toBe('function');
   });
 });

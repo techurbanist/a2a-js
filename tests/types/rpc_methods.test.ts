@@ -2,20 +2,19 @@ import {
   JSONRPCMessage,
   JSONRPCRequest,
   JSONRPCResult,
+  MessageSendParams,
   SendMessageRequest,
   SendMessageSuccessResponse,
   SendMessageStreamingRequest,
   SendMessageStreamingSuccessResponse,
   GetTaskRequest,
-  TaskQueryParams,
-  MessageSendParams,
-  TaskIdParams,
-  PushNotificationConfig,
-  TaskSendParams,
-  TaskPushNotificationConfig,
+  GetTaskSuccessResponse,
   CancelTaskRequest,
   CancelTaskSuccessResponse,
-  GetTaskSuccessResponse,
+  TaskSendParams,
+  TaskQueryParams,
+  TaskIdParams,
+  TaskPushNotificationConfig,
   SetTaskPushNotificationConfigRequest,
   SetTaskPushNotificationConfigSuccessResponse,
   GetTaskPushNotificationConfigRequest,
@@ -23,16 +22,19 @@ import {
   TaskResubscriptionRequest,
   TaskStatusUpdateEvent,
   TaskArtifactUpdateEvent,
-  JSONRPCErrorResponse,
-  Message, 
-  TextPart, 
-  Role, 
-  Task, 
-  TaskState, 
+  SendTaskStreamingResponse
+} from '../../src/types/rpc_methods';
+import {
+  Message,
+  TextPart,
+  Role,
+  Task,
   TaskStatus,
-  TaskArtifact
-} from '../src/types';
-
+  TaskState,
+  Artifact,
+  PushNotificationConfig
+} from '../../src/types/protocol_objects';
+import { JSONRPCErrorResponse } from '../../src/types/errors';
 
 describe('JSON-RPC Base Types', () => {
   test('JSON-RPC Message should have jsonrpc version 2.0', () => {
@@ -82,7 +84,6 @@ describe('RPC Methods Types', () => {
   };
 
   const message: Message = {
-    messageId: 'msg-789',
     role: Role.User,
     parts: [textPart]
   };
@@ -103,7 +104,6 @@ describe('RPC Methods Types', () => {
 
       expect(request.jsonrpc).toBe('2.0');
       expect(request.method).toBe('message/send');
-      expect(request.params.message.messageId).toBe('msg-789');
       expect(request.params.message.parts[0].type).toBe('text');
       expect(request.id).toBe('req-123');
     });
@@ -118,8 +118,11 @@ describe('RPC Methods Types', () => {
       expect(response.jsonrpc).toBe('2.0');
       expect(response.id).toBe('resp-123');
       // Since result can be Message or Task, we need to assert the type first
-      if ('messageId' in response.result) {
-        expect(response.result.messageId).toBe('msg-789');
+      if ('role' in response.result) {
+        expect(response.result.role).toBe(Role.User);
+      } else {
+        expect(response.result.id).toBeDefined();
+        expect(response.result.status).toBeDefined();
       }
     });
 
@@ -137,7 +140,7 @@ describe('RPC Methods Types', () => {
 
       expect(request.jsonrpc).toBe('2.0');
       expect(request.method).toBe('message/sendStream');
-      expect(request.params.message.messageId).toBe('msg-789');
+      expect(request.params.message.role).toBe(Role.User);
       expect(request.id).toBe('req-stream-123');
     });
 
@@ -150,7 +153,7 @@ describe('RPC Methods Types', () => {
 
       expect(response.jsonrpc).toBe('2.0');
       expect(response.id).toBe('resp-stream-123');
-      expect(response.result.messageId).toBe('msg-789');
+      expect(response.result.role).toBe(Role.User);
     });
   });
 
@@ -189,7 +192,7 @@ describe('RPC Methods Types', () => {
       };
 
       expect(params.id).toBe('task-789');
-      expect(params.message.messageId).toBe('msg-789');
+      expect(params.message.role).toBe(Role.User);
       expect(params.sessionId).toBeUndefined();
       expect(params.pushNotification).toBeUndefined();
       expect(params.historyLength).toBeUndefined();
@@ -227,7 +230,6 @@ describe('RPC Methods Types', () => {
 
     test('CancelTaskSuccessResponse should have correct format', () => {
       const inputMessage: Message = {
-        messageId: 'msg-input-cancel',
         role: Role.User,
         parts: [{ type: 'text', text: 'Cancel request' }]
       };
@@ -260,7 +262,6 @@ describe('RPC Methods Types', () => {
 
     test('GetTaskSuccessResponse should have correct format', () => {
       const inputMessage: Message = {
-        messageId: 'msg-input-get',
         role: Role.User,
         parts: [{ type: 'text', text: 'Get task request' }]
       };
@@ -443,78 +444,93 @@ describe('RPC Methods Types', () => {
   // Test Event types for streaming responses
   describe('Task Event Types', () => {
     test('TaskStatusUpdateEvent should have correct format', () => {
-      const statusEvent: TaskStatusUpdateEvent = {
-        type: 'taskStatusUpdate',
-        taskId: 'task-123',
-        state: TaskState.Working
+      const taskStatus: TaskStatus = {
+        state: TaskState.Working,
+        message: null
       };
-
-      expect(statusEvent.type).toBe('taskStatusUpdate');
-      expect(statusEvent.taskId).toBe('task-123');
-      expect(statusEvent.state).toBe(TaskState.Working);
-      expect(statusEvent.statusMessage).toBeUndefined();
-
-      // With optional statusMessage
-      const statusEventWithMessage: TaskStatusUpdateEvent = {
+      const event: TaskStatusUpdateEvent = {
         type: 'taskStatusUpdate',
-        taskId: 'task-123',
-        state: TaskState.Completed,
-        statusMessage: 'Task completed successfully'
+        id: 'task-evt-1',
+        status: taskStatus,
+        final: true,
+        metadata: { foo: 'bar' }
       };
-
-      expect(statusEventWithMessage.statusMessage).toBe('Task completed successfully');
+      expect(event.type).toBe('taskStatusUpdate');
+      expect(event.id).toBe('task-evt-1');
+      expect(event.status).toBe(taskStatus);
+      expect(event.final).toBe(true);
+      expect(event.metadata).toEqual({ foo: 'bar' });
     });
 
     test('TaskArtifactUpdateEvent should have correct format', () => {
-      const artifact: TaskArtifact = {
-        artifactId: 'art-123',
-        mimeType: 'application/json',
-        data: { result: 'example' }
+      const artifact: Artifact = {
+        name: 'artifact.txt',
+        parts: [
+          {
+            type: 'file',
+            file: {
+              name: 'artifact.txt',
+              mimeType: 'text/plain',
+              uri: 'file://artifact.txt'
+            }
+          }
+        ],
+        index: 0
       };
-
-      const artifactEvent: TaskArtifactUpdateEvent = {
+      const event: TaskArtifactUpdateEvent = {
         type: 'taskArtifactUpdate',
-        taskId: 'task-123',
-        artifact
+        id: 'task-evt-2',
+        artifact,
+        metadata: { foo: 'baz' }
       };
-
-      expect(artifactEvent.type).toBe('taskArtifactUpdate');
-      expect(artifactEvent.taskId).toBe('task-123');
-      expect(artifactEvent.artifact.artifactId).toBe('art-123');
-      expect(artifactEvent.artifact.mimeType).toBe('application/json');
-      expect(artifactEvent.artifact.data).toEqual({ result: 'example' });
+      expect(event.type).toBe('taskArtifactUpdate');
+      expect(event.id).toBe('task-evt-2');
+      expect(event.artifact).toBe(artifact);
+      expect(event.metadata).toEqual({ foo: 'baz' });
     });
   });
 
   // Test error response format
   describe('Error Response Types', () => {
     test('JSONRPCErrorResponse should have correct format for A2A RPC methods', () => {
-      const errorResponse: JSONRPCErrorResponse = {
+      const errorResp: JSONRPCErrorResponse = {
         jsonrpc: '2.0',
         error: {
-          code: -32602,
-          message: 'Invalid task ID'
+          code: -32001,
+          message: 'Task not found',
+          data: { id: 'missing-task' }
         },
-        id: 'error-resp-123'
+        id: 'err-123'
       };
+      expect(errorResp.jsonrpc).toBe('2.0');
+      expect(errorResp.error.code).toBe(-32001);
+      expect(errorResp.error.message).toBe('Task not found');
+      expect(errorResp.error.data).toEqual({ id: 'missing-task' });
+      expect(errorResp.id).toBe('err-123');
+    });
+  });
 
-      expect(errorResponse.jsonrpc).toBe('2.0');
-      expect(errorResponse.error.code).toBe(-32602);
-      expect(errorResponse.error.message).toBe('Invalid task ID');
-      expect(errorResponse.id).toBe('error-resp-123');
-
-      // With optional error data
-      const errorWithData: JSONRPCErrorResponse = {
+  // Test SendTaskStreamingResponse format
+  describe('SendTaskStreamingResponse Types', () => {
+    test('SendTaskStreamingResponse should have correct format', () => {
+      const statusEvent: TaskStatusUpdateEvent = {
+        type: 'taskStatusUpdate',
+        id: 'stream-task-1',
+        status: {
+          state: TaskState.Working,
+          message: null
+        },
+        final: false
+      };
+      const resp: SendTaskStreamingResponse = {
         jsonrpc: '2.0',
-        error: {
-          code: -32602,
-          message: 'Invalid task ID',
-          data: { taskId: 'invalid-id' }
-        },
-        id: 'error-data-resp-123'
+        id: 'stream-task-1',
+        result: statusEvent
       };
-
-      expect(errorWithData.error.data).toEqual({ taskId: 'invalid-id' });
+      expect(resp.jsonrpc).toBe('2.0');
+      expect(resp.id).toBe('stream-task-1');
+      expect(resp.result).toBe(statusEvent);
+      expect(resp.error).toBeUndefined();
     });
   });
 });

@@ -1,27 +1,24 @@
-import axios, { AxiosInstance } from "axios";
 import { v4 as uuidv4 } from "uuid";
-
 import {
   A2AClientHTTPError,
   A2AClientJSONError
 } from "./errors.js";
-
 import { AgentCard } from "../types/agent_card.js";
 import {
   CancelTaskResponse,
   GetTaskPushNotificationConfigResponse,
   GetTaskResponse,
-  MessageSendParams,
   PushNotificationConfig,
-  SendMessageResponse,
-  SendMessageStreamingResponse,
   SetTaskPushNotificationConfigResponse,
   TaskIdParams,
   TaskPushNotificationConfig,
   TaskQueryParams,
+  TaskSendParams,
+  Task,
+  SendTaskStreamingResponse,
+  SetTaskPushNotificationConfigRequest,
+  TaskResubscriptionRequest
 } from "../types/index.js";
-
-
 
 /**
  * Agent Card resolver
@@ -29,25 +26,28 @@ import {
 export class A2ACardResolver {
   private baseUrl: string;
   private agentCardPath: string;
-  private axiosClient: AxiosInstance;
+  private fetchImpl: typeof fetch;
 
   /**
    * Create a new A2ACardResolver
    *
-   * @param axiosClient - Axios client instance
    * @param baseUrl - Base URL of the agent
    * @param agentCardPath - Path to the agent card JSON
+   * @param fetchImpl - Optional custom fetch implementation
    */
   constructor(
-    axiosClient: AxiosInstance,
     baseUrl: string,
     agentCardPath: string = "/.well-known/agent.json",
+    fetchImpl?: typeof fetch
   ) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
     this.agentCardPath = agentCardPath.startsWith("/")
       ? agentCardPath.substring(1)
       : agentCardPath;
-    this.axiosClient = axiosClient;
+    this.fetchImpl = fetchImpl || (globalThis.fetch as typeof fetch);
+    if (!this.fetchImpl) {
+      throw new Error("No fetch implementation available. Provide one explicitly.");
+    }
   }
 
   /**
@@ -57,21 +57,14 @@ export class A2ACardResolver {
    */
   async getAgentCard(): Promise<AgentCard> {
     try {
-      const response = await this.axiosClient.get(
-        `${this.baseUrl}/${this.agentCardPath}`,
+      const response = await this.fetchImpl(
+        `${this.baseUrl}/${this.agentCardPath}`
       );
-      return response.data as AgentCard;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          throw new A2AClientHTTPError(error.response.status, error.message);
-        } else if (error.request) {
-          throw new A2AClientHTTPError(
-            503,
-            `Network communication error: ${error.message}`,
-          );
-        }
+      if (!response.ok) {
+        throw new A2AClientHTTPError(response.status, response.statusText);
       }
+      return await response.json() as AgentCard;
+    } catch (error) {
       throw new A2AClientJSONError(`Failed to parse agent card: ${error}`);
     }
   }
@@ -82,305 +75,264 @@ export class A2ACardResolver {
  */
 export class A2AClient {
   private url: string;
-  private axiosClient: AxiosInstance;
+  private fetchImpl: typeof fetch;
 
   /**
    * Create a new A2AClient
    *
-   * @param axiosClient - Axios client instance
-   * @param agentCard - Agent card (optional if url is provided)
-   * @param url - URL of the agent (optional if agentCard is provided)
+   * @param url - URL of the agent
+   * @param fetchImpl - Optional custom fetch implementation
    */
-  constructor(axiosClient: AxiosInstance, agentCard?: AgentCard, url?: string) {
-    if (agentCard) {
-      this.url = agentCard.url;
-    } else if (url) {
-      this.url = url;
-    } else {
-      throw new Error("Must provide either agentCard or url");
+  constructor(url: string, fetchImpl?: typeof fetch) {
+    this.url = url;
+    this.fetchImpl = fetchImpl || (globalThis.fetch as typeof fetch);
+    if (!this.fetchImpl) {
+      throw new Error("No fetch implementation available. Provide one explicitly.");
     }
-
-    this.axiosClient = axiosClient;
   }
 
   /**
-   * Get a client from an agent card URL
-   *
-   * @param axiosClient - Axios client instance
-   * @param baseUrl - Base URL of the agent
-   * @param agentCardPath - Path to the agent card JSON
-   * @returns Promise resolving to the A2AClient
+   * Send a task to the agent (tasks/send)
+   * @param params - TaskSendParams
+   * @param requestId - Optional request ID
+   * @returns Task | null
    */
-  static async getClientFromAgentCardUrl(
-    axiosClient: AxiosInstance,
-    baseUrl: string,
-    agentCardPath: string = "/.well-known/agent.json",
-  ): Promise<A2AClient> {
-    const cardResolver = new A2ACardResolver(
-      axiosClient,
-      baseUrl,
-      agentCardPath,
-    );
-    const agentCard = await cardResolver.getAgentCard();
-    return new A2AClient(axiosClient, agentCard);
-  }
-
-  /**
-   * Send a message to the agent
-   *
-   * @param payload - Message payload
-   * @param requestId - Request ID (defaults to a UUID)
-   * @returns Promise resolving to the SendMessageResponse
-   */
-  async sendMessage(
-    payload: Record<string, any>,
-    requestId: string | number = uuidv4(),
-  ): Promise<SendMessageResponse> {
+  async sendTask(
+    params: TaskSendParams,
+    requestId: string | number = uuidv4()
+  ): Promise<Task | null> {
     const request = {
       jsonrpc: "2.0",
       id: requestId,
-      method: "message/send",
-      params: payload as MessageSendParams,
+      method: "tasks/send",
+      params
     };
-
-    return (await this._sendRequest(request)) as SendMessageResponse;
+    const response = await this._sendRequest(request);
+    if (response.result && typeof response.result === "object") {
+      return response.result as Task;
+    }
+    return null;
   }
 
   /**
-   * Send a message to the agent with streaming response
-   *
-   * @param payload - Message payload
-   * @param requestId - Request ID (defaults to a UUID)
-   * @param onChunk - Callback function for each chunk
-   * @returns Promise that resolves when the stream ends
+   * Subscribe to a streaming task (tasks/sendSubscribe)
+   * @param params - TaskSendParams
+   * @param requestId - Optional request ID
+   * @returns Async generator yielding SendTaskStreamingResponse events
    */
-  async sendMessageStreaming(
-    payload: Record<string, any>,
-    requestId: string | number = uuidv4(),
-    onChunk: (response: SendMessageStreamingResponse) => void,
-  ): Promise<void> {
+  async *sendTaskSubscribe(
+    params: TaskSendParams,
+    requestId: string | number = uuidv4()
+  ): AsyncGenerator<SendTaskStreamingResponse, void, unknown> {
     const request = {
       jsonrpc: "2.0",
       id: requestId,
-      method: "message/sendStream",
-      params: payload as MessageSendParams,
+      method: "tasks/sendSubscribe",
+      params
     };
-
-    try {
-      // For Node.js, use a more direct approach with fetch API
-      const response = await fetch(this.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
-        },
-        body: JSON.stringify(request),
-      });
-
-      if (!response.ok) {
-        throw new A2AClientHTTPError(
-          response.status,
-          `HTTP error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      // Check if we have a ReadableStream
-      if (!response.body) {
-        throw new A2AClientHTTPError(500, "Response body is null");
-      }
-
-      // Using regular fetch + reader pattern which works on both Node.js and browsers
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
-
-        // Process complete SSE messages
-        const messages = buffer.split("\n\n");
-        buffer = messages.pop() || "";
-
-        for (const message of messages) {
-          if (!message.trim()) continue;
-
-          // Process each message
-          const lines = message.split("\n");
-          let data = "";
-          let eventType = "message";
-
-          for (const line of lines) {
-            if (line.startsWith("data:")) {
-              data += line.slice(5).trim();
-            } else if (line.startsWith("event:")) {
-              eventType = line.slice(6).trim();
-            }
+    const response = await this.fetchImpl(this.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream"
+      },
+      body: JSON.stringify(request)
+    });
+    if (!response.ok) {
+      throw new A2AClientHTTPError(response.status, `HTTP error: ${response.status} ${response.statusText}`);
+    }
+    if (!response.body) {
+      throw new A2AClientHTTPError(500, "Response body is null");
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+      for (const part of parts) {
+        if (!part.trim()) continue;
+        const lines = part.split("\n");
+        let data = "";
+        for (const line of lines) {
+          if (line.startsWith("data:")) {
+            data += line.slice(5).trim();
           }
-
-          if (eventType === "end") {
-            return; // End of stream
-          }
-
-          if (data) {
-            try {
-              const parsedData = JSON.parse(data);
-              onChunk(parsedData as SendMessageStreamingResponse);
-            } catch (error) {
-              console.error("Failed to parse SSE data:", error);
-            }
+        }
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            yield parsed as SendTaskStreamingResponse;
+          } catch (e) {
+            // Ignore parse errors for incomplete chunks
           }
         }
       }
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          throw new A2AClientHTTPError(error.response.status, error.message);
-        } else if (error.request) {
-          throw new A2AClientHTTPError(
-            503,
-            `Network communication error: ${error.message}`,
-          );
-        }
-      }
-      throw new A2AClientJSONError(
-        `Failed to process streaming response: ${error}`,
-      );
     }
   }
 
   /**
-   * Send a generic request to the agent
-   *
-   * @param request - Request object
-   * @returns Promise resolving to the response
+   * Resubscribe to a streaming task (tasks/resubscribe)
+   * @param params - TaskQueryParams
+   * @param requestId - Optional request ID
+   * @returns Async generator yielding SendTaskStreamingResponse events
    */
-  private async _sendRequest(
-    request: Record<string, any>,
-  ): Promise<Record<string, any>> {
-    try {
-      const response = await this.axiosClient.post(this.url, request);
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          throw new A2AClientHTTPError(error.response.status, error.message);
-        } else if (error.request) {
-          throw new A2AClientHTTPError(
-            503,
-            `Network communication error: ${error.message}`,
-          );
+  async *resubscribeTask(
+    params: TaskQueryParams,
+    requestId: string | number = uuidv4()
+  ): AsyncGenerator<SendTaskStreamingResponse, void, unknown> {
+    const request = {
+      jsonrpc: "2.0",
+      id: requestId,
+      method: "tasks/resubscribe",
+      params
+    };
+    const response = await this.fetchImpl(this.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream"
+      },
+      body: JSON.stringify(request)
+    });
+    if (!response.ok) {
+      throw new A2AClientHTTPError(response.status, `HTTP error: ${response.status} ${response.statusText}`);
+    }
+    if (!response.body) {
+      throw new A2AClientHTTPError(500, "Response body is null");
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+      for (const part of parts) {
+        if (!part.trim()) continue;
+        const lines = part.split("\n");
+        let data = "";
+        for (const line of lines) {
+          if (line.startsWith("data:")) {
+            data += line.slice(5).trim();
+          }
+        }
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            yield parsed as SendTaskStreamingResponse;
+          } catch (e) {
+            // Ignore parse errors for incomplete chunks
+          }
         }
       }
-      throw new A2AClientJSONError(`Failed to parse response: ${error}`);
     }
   }
 
   /**
-   * Get a task by ID
-   *
-   * @param payload - Task query payload
-   * @param requestId - Request ID (defaults to a UUID)
-   * @returns Promise resolving to the GetTaskResponse
+   * Get a task by ID (tasks/get)
+   * @param params - TaskQueryParams
+   * @param requestId - Optional request ID
+   * @returns Task | null
    */
   async getTask(
-    payload: Record<string, any>,
-    requestId: string | number = uuidv4(),
-  ): Promise<GetTaskResponse> {
+    params: TaskQueryParams,
+    requestId: string | number = uuidv4()
+  ): Promise<Task | null> {
     const request = {
       jsonrpc: "2.0",
       id: requestId,
       method: "tasks/get",
-      params: payload as TaskQueryParams,
+      params
     };
-
-    return (await this._sendRequest(request)) as GetTaskResponse;
+    const response = await this._sendRequest(request);
+    if (response.result && typeof response.result === "object") {
+      return response.result as Task;
+    }
+    return null;
   }
 
   /**
-   * Cancel a task
-   *
-   * @param payload - Task ID payload
-   * @param requestId - Request ID (defaults to a UUID)
-   * @returns Promise resolving to the CancelTaskResponse
+   * Cancel a task (tasks/cancel)
+   * @param params - TaskIdParams
+   * @param requestId - Optional request ID
+   * @returns CancelTaskResponse
    */
   async cancelTask(
-    payload: Record<string, any>,
-    requestId: string | number = uuidv4(),
+    params: TaskIdParams,
+    requestId: string | number = uuidv4()
   ): Promise<CancelTaskResponse> {
     const request = {
       jsonrpc: "2.0",
       id: requestId,
       method: "tasks/cancel",
-      params: payload as TaskIdParams,
+      params
     };
-
-    return (await this._sendRequest(request)) as CancelTaskResponse;
+    return await this._sendRequest(request) as CancelTaskResponse;
   }
 
   /**
-   * Set task push notification configuration
-   *
-   * @param taskId - Task ID
-   * @param pushConfig - Push notification configuration
-   * @param metadata - Optional metadata
-   * @param requestId - Request ID (defaults to a UUID)
-   * @returns Promise resolving to the SetTaskPushNotificationConfigResponse
+   * Set task push notification configuration (tasks/pushNotificationConfig/set)
+   * @param params - TaskPushNotificationConfig
+   * @param requestId - Optional request ID
+   * @returns SetTaskPushNotificationConfigResponse
    */
-  async setTaskCallback(
-    taskId: string,
-    pushConfig: PushNotificationConfig | null,
-    metadata?: Record<string, any> | null,
-    requestId: string | number = uuidv4(),
+  async setTaskPushNotificationConfig(
+    params: TaskPushNotificationConfig,
+    requestId: string | number = uuidv4()
   ): Promise<SetTaskPushNotificationConfigResponse> {
-    const params: TaskPushNotificationConfig = {
-      id: taskId,
-      pushNotificationConfig: pushConfig,
-      metadata: metadata
-    };
-    
     const request = {
       jsonrpc: "2.0",
       id: requestId,
       method: "tasks/pushNotificationConfig/set",
-      params,
+      params
     };
-
-    return (await this._sendRequest(
-      request,
-    )) as SetTaskPushNotificationConfigResponse;
+    return await this._sendRequest(request) as SetTaskPushNotificationConfigResponse;
   }
 
   /**
-   * Get task push notification configuration
-   *
-   * @param taskId - Task ID
-   * @param metadata - Optional metadata
-   * @param requestId - Request ID (defaults to a UUID)
-   * @returns Promise resolving to the GetTaskPushNotificationConfigResponse
+   * Get task push notification configuration (tasks/pushNotificationConfig/get)
+   * @param params - TaskIdParams
+   * @param requestId - Optional request ID
+   * @returns GetTaskPushNotificationConfigResponse
    */
-  async getTaskCallback(
-    taskId: string,
-    metadata?: Record<string, any> | null,
-    requestId: string | number = uuidv4(),
+  async getTaskPushNotificationConfig(
+    params: TaskIdParams,
+    requestId: string | number = uuidv4()
   ): Promise<GetTaskPushNotificationConfigResponse> {
-    const params: TaskIdParams = {
-      id: taskId,
-      metadata
-    };
-    
     const request = {
       jsonrpc: "2.0",
       id: requestId,
       method: "tasks/pushNotificationConfig/get",
-      params,
+      params
     };
+    return await this._sendRequest(request) as GetTaskPushNotificationConfigResponse;
+  }
 
-    return (await this._sendRequest(
-      request,
-    )) as GetTaskPushNotificationConfigResponse;
+  /**
+   * Send a generic JSON-RPC request
+   * @param request - JSON-RPC request object
+   * @returns JSON-RPC response object
+   */
+  private async _sendRequest(request: Record<string, any>): Promise<any> {
+    try {
+      const response = await this.fetchImpl(this.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request)
+      });
+      const data = await response.json();
+      if (data.error) {
+        throw new A2AClientHTTPError(data.error.code, data.error.message);
+      }
+      return data;
+    } catch (error: any) {
+      throw new A2AClientJSONError(`Failed to parse response: ${error}`);
+    }
   }
 }
