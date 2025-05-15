@@ -18,8 +18,7 @@
     "dev": "tsc --watch",
     "example:server": "node dist/examples/helloworld/server.js",
     "example:client": "node dist/examples/helloworld/client.js",
-    "clean": "rimraf dist",
-    "docs": "typedoc --out docs src"
+    "clean": "rimraf dist"
   },
   "keywords": [
     "a2a",
